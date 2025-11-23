@@ -64,7 +64,7 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
 
 	BaseType_t ret = xTaskCreate(ota_init_task,
 				    "ota_init",
-				    4096,
+				    1024*8,
 				    NULL,
 				    tskIDLE_PRIORITY + 2,
 				    NULL);
