@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS 
         "src/http_client_module.c"
-        "src/http_ota_manger.c"
+        "src/http_ota_manager.c"
     INCLUDE_DIRS 
         "."
         "include"

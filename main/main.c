@@ -31,7 +31,22 @@ static void ota_init_task(void *arg)
 {
 	(void)arg;
 
+	http_ota_manager_config_t cfg = HTTP_OTA_MANAGER_DEFAULT_CONFIG();
+	snprintf(cfg.version_url,
+		 sizeof(cfg.version_url),
+		 "http://win.xingnian.vip:16623/firmware/version.json");
 
+	esp_err_t ret = http_ota_manager_init(&cfg);
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG, "http_ota_manager_init failed: %s", esp_err_to_name(ret));
+		vTaskDelete(NULL);
+		return;
+	}
+
+	ret = http_ota_manager_check_now();
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG, "http_ota_manager_check_now failed: %s", esp_err_to_name(ret));
+	}
 
 	vTaskDelete(NULL);
 }
@@ -55,7 +70,10 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
 				    NULL);
 	if (ret != pdPASS) {
 		ESP_LOGE(TAG, "create ota_init task failed");
+		return;
 	}
+
+	s_ota_inited = true;
 }
 
 /*
