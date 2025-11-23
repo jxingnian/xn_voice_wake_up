@@ -15,7 +15,7 @@
 
 #include "esp_log.h"
 
-#include "http_ota.h"
+#include "http_ota_module.h"
 #include "xn_ota_manage.h"
 
 /* 日志 TAG */

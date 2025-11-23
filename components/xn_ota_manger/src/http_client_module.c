@@ -1,21 +1,25 @@
 /*
- * @Author: xingnian
+ * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-10-29
- * @Description: HTTP客户端（基于esp_http_client）
- * 
- * 统一网络架构：WiFi和4G（通过USB RNDIS）都使用此实现
+ * @LastEditors: xingnian jixingnian@gmail.com
+ * @LastEditTime: 2025-11-23 17:20:00
+ * @FilePath: \xn_ota_manger\components\xn_ota_manger\src\http_client_module.c
+ * @Description: HTTP 客户端模块实现（基于 esp_http_client）
+ *
+ * 统一网络架构：WiFi 与 4G（通过 USB RNDIS）都通过本模块发送 HTTP 请求，
+ * 上层无需关心具体链路差异，仅关注 URL / 超时等参数。
  */
 
-#include "http_client.h"
+#include "http_client_module.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include <string.h>
 #include <stdlib.h>
 
-static const char *TAG = "HTTP_CLIENT";
+static const char *TAG = "http_client_module";
 
 /**
- * @brief HTTP客户端内部结构
+ * @brief HTTP 客户端内部结构
  */
 typedef struct {
     esp_http_client_handle_t client;
@@ -24,7 +28,7 @@ typedef struct {
 } http_client_t;
 
 /**
- * @brief 创建HTTP客户端
+ * @brief 创建 HTTP 客户端
  */
 http_client_handle_t http_client_create(const http_client_config_t *config)
 {
@@ -60,7 +64,7 @@ http_client_handle_t http_client_create(const http_client_config_t *config)
 }
 
 /**
- * @brief 销毁HTTP客户端
+ * @brief 销毁 HTTP 客户端
  */
 void http_client_destroy(http_client_handle_t handle)
 {
@@ -79,7 +83,7 @@ void http_client_destroy(http_client_handle_t handle)
 }
 
 /**
- * @brief 设置HTTP请求头
+ * @brief 设置 HTTP 请求头
  */
 esp_err_t http_client_set_header(http_client_handle_t handle, const char *key, const char *value)
 {
@@ -100,7 +104,7 @@ esp_err_t http_client_set_header(http_client_handle_t handle, const char *key, c
 }
 
 /**
- * @brief 打开HTTP连接
+ * @brief 打开 HTTP 连接
  */
 esp_err_t http_client_open(http_client_handle_t handle, const char *method)
 {
@@ -136,7 +140,7 @@ esp_err_t http_client_open(http_client_handle_t handle, const char *method)
 }
 
 /**
- * @brief 获取HTTP状态码
+ * @brief 获取 HTTP 状态码
  */
 int http_client_get_status_code(http_client_handle_t handle)
 {
@@ -175,7 +179,7 @@ int http_client_read(http_client_handle_t handle, void *buffer, size_t len)
 }
 
 /**
- * @brief 关闭HTTP连接
+ * @brief 关闭 HTTP 连接
  */
 esp_err_t http_client_close(http_client_handle_t handle)
 {

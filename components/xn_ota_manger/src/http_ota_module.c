@@ -1,15 +1,13 @@
 /*
- * @Author: xingnian j_xingnian@163.com
- * @Date: 2025-10-23 20:14:52
- * @LastEditors: xingnian j_xingnian@163.com
- * @LastEditTime: 2025-11-04 11:23:40
- * @FilePath: \ESP_ChunFeng\main\http_ota\http_ota.c
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
- * @Author: xingnian
+ * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-10-21
- * @Description: HTTP OTA 升级模块实现 (基于 ESP-IDF advanced_https_ota_example 简化而来)
+ * @LastEditors: xingnian jixingnian@gmail.com
+ * @LastEditTime: 2025-11-23 17:20:00
+ * @FilePath: \xn_ota_manger\components\xn_ota_manger\src\http_ota_module.c
+ * @Description: HTTP OTA 升级模块实现
+ *
+ * 在 http_client_module 的基础上，按块下载远程固件并写入 OTA 分区，
+ * 封装了断点重试、进度回调、版本比较与云端版本检查等功能。
  */
 
 #include <string.h>
@@ -25,8 +23,8 @@
 #include "esp_https_ota.h"
 #include "nvs_flash.h"
 #include "cJSON.h"
-#include "http_ota.h"
-#include "http_client.h"
+#include "http_ota_module.h"
+#include "http_client_module.h"
 
 static const char *TAG = "HTTP_OTA";
 

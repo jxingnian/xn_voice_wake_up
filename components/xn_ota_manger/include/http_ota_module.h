@@ -1,11 +1,19 @@
 /*
- * @Author: xingnian
+ * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-10-21
- * @Description: HTTP OTA 升级模块头文件
+ * @LastEditors: xingnian jixingnian@gmail.com
+ * @LastEditTime: 2025-11-23 17:20:00
+ * @FilePath: \xn_ota_manger\components\xn_ota_manger\include\http_ota_module.h
+ * @Description: HTTP OTA 升级模块对外接口
+ *
+ * 仅负责：
+ *  - 根据给定 URL 下载固件镜像并写入 OTA 分区；
+ *  - 提供同步 / 异步两种升级方式与进度回调；
+ *  - 提供版本查询、回滚检测与云端版本检查等辅助能力。
  */
 
-#ifndef HTTP_OTA_H
-#define HTTP_OTA_H
+#ifndef HTTP_OTA_MODULE_H
+#define HTTP_OTA_MODULE_H
 
 #include "esp_err.h"
 #include "esp_http_client.h"
@@ -168,5 +176,5 @@ int http_ota_compare_version(const char *v1, const char *v2);
 }
 #endif
 
-#endif // HTTP_OTA_H
+#endif // HTTP_OTA_MODULE_H
 

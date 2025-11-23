@@ -2,7 +2,7 @@
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-11-23 16:50:00
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-23 16:50:00
+ * @LastEditTime: 2025-11-23 17:20:49
  * @FilePath: \xn_ota_manger\components\xn_ota_manger\include\xn_ota_manage.h
  * @Description: OTA 管理模块对外接口（封装 HTTP OTA / 版本检查 / 状态机）
  *
@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 #include "esp_err.h"
-#include "http_ota.h"
+#include "http_ota_module.h"
 
 #ifdef __cplusplus
 extern "C" {
