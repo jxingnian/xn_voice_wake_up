@@ -1,0 +1,11 @@
+menu "XN OTA Manager"
+
+config XN_APP_VERSION
+    string "Application version string (x.y.z)"
+    default "1.0.2"
+
+config XN_OTA_VERSION_URL
+    string "OTA version JSON URL"
+    default "http://win.xingnian.vip:16623/firmware/version.json"
+
+endmenu

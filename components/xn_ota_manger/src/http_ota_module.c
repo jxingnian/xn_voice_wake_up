@@ -2,7 +2,7 @@
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-10-21
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-23 17:20:00
+ * @LastEditTime: 2025-11-23 19:06:59
  * @FilePath: \xn_ota_manger\components\xn_ota_manger\src\http_ota_module.c
  * @Description: HTTP OTA 升级模块实现
  *

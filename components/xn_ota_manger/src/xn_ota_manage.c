@@ -14,11 +14,13 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "esp_log.h"
+#include "sdkconfig.h"
 
 #include "http_ota_module.h"
 #include "xn_ota_manage.h"
@@ -265,6 +267,17 @@ esp_err_t ota_manage_init(const ota_manage_config_t *config)
 	} else {
 		s_ota_cfg = *config;
 	}
+
+	/* 若未显式配置 version_url，则优先从 Kconfig 中填充默认值 */
+#ifdef CONFIG_XN_OTA_VERSION_URL
+	if (s_ota_cfg.version_url[0] == '\0') {
+		snprintf(s_ota_cfg.version_url,
+			 sizeof(s_ota_cfg.version_url),
+			 "%s",
+			 CONFIG_XN_OTA_VERSION_URL);
+		ESP_LOGI(TAG, "use default version_url from Kconfig: %s", s_ota_cfg.version_url);
+	}
+#endif
 
 	/* 初始化底层 HTTP OTA 模块 */
 	esp_err_t ret = http_ota_init();

@@ -2,7 +2,7 @@
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-23 18:52:11
+ * @LastEditTime: 2025-11-23 19:08:47
  * @FilePath: \xn_ota_manger\main\main.c
  * @Description: esp32 OTA管理组件 By.星年
  */
@@ -32,10 +32,6 @@ static void ota_init_task(void *arg)
 	(void)arg;
 
 	ota_manage_config_t cfg = OTA_MANAGE_DEFAULT_CONFIG();
-	snprintf(cfg.version_url,
-		 sizeof(cfg.version_url),
-		 "http://win.xingnian.vip:16623/firmware/version.json");
-
 	esp_err_t ret = ota_manage_init(&cfg);
 	if (ret == ESP_OK) {
 		s_ota_inited = true;
