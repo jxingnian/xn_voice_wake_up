@@ -56,6 +56,10 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wno-error=unused-but-set-variable
     -Wno-error=type-limits
     -Wno-error=strict-aliasing
+    -Wno-error=uninitialized
+    -Wno-error=missing-field-initializers
+    -Wno-missing-field-initializers
+    -Wno-uninitialized
 )
 
 # 定义 Edge Impulse 相关宏
