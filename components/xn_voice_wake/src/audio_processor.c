@@ -13,9 +13,10 @@
 static const char *TAG = "audio_proc";
 
 // I2S 配置
-#define I2S_NUM             I2S_NUM_0
+#define I2S_NUM             I2S_NUM_1   // 使用 I2S 端口 1
 #define DMA_BUF_COUNT       4
 #define DMA_BUF_LEN         512
+#define BIT_SHIFT           14          // 32bit 转 16bit 的右移位数
 
 // 模块状态
 static struct {
@@ -30,9 +31,15 @@ static struct {
 // 音频采集任务
 static void audio_capture_task(void *arg)
 {
-    int16_t *buffer = heap_caps_malloc(DMA_BUF_LEN * sizeof(int16_t), MALLOC_CAP_DMA);
-    if (!buffer) {
+    // 32 位原始缓冲区
+    int32_t *raw_buffer = heap_caps_malloc(DMA_BUF_LEN * sizeof(int32_t), MALLOC_CAP_DMA);
+    // 16 位输出缓冲区
+    int16_t *out_buffer = heap_caps_malloc(DMA_BUF_LEN * sizeof(int16_t), MALLOC_CAP_DMA);
+    
+    if (!raw_buffer || !out_buffer) {
         ESP_LOGE(TAG, "Failed to allocate audio buffer");
+        if (raw_buffer) free(raw_buffer);
+        if (out_buffer) free(out_buffer);
         vTaskDelete(NULL);
         return;
     }
@@ -40,17 +47,24 @@ static void audio_capture_task(void *arg)
     size_t bytes_read;
     
     while (s_audio.running) {
-        esp_err_t ret = i2s_channel_read(s_audio.rx_handle, buffer, 
-                                          DMA_BUF_LEN * sizeof(int16_t), 
+        esp_err_t ret = i2s_channel_read(s_audio.rx_handle, raw_buffer, 
+                                          DMA_BUF_LEN * sizeof(int32_t), 
                                           &bytes_read, portMAX_DELAY);
         
         if (ret == ESP_OK && s_audio.callback && s_audio.running) {
-            size_t samples = bytes_read / sizeof(int16_t);
-            s_audio.callback(buffer, samples);
+            size_t samples = bytes_read / sizeof(int32_t);
+            
+            // 32 位转 16 位
+            for (size_t i = 0; i < samples; i++) {
+                out_buffer[i] = (int16_t)(raw_buffer[i] >> BIT_SHIFT);
+            }
+            
+            s_audio.callback(out_buffer, samples);
         }
     }
 
-    free(buffer);
+    free(raw_buffer);
+    free(out_buffer);
     vTaskDelete(NULL);
 }
 
@@ -79,10 +93,10 @@ esp_err_t audio_processor_init(const audio_processor_config_t *config)
         return ret;
     }
 
-    // I2S 标准模式配置
+    // I2S 标准模式配置 (32 位采样)
     i2s_std_config_t std_cfg = {
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(config->sample_rate),
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = config->bck_pin,

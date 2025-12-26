@@ -71,9 +71,9 @@ typedef struct {
  * @brief 默认配置宏
  */
 #define VOICE_WAKE_DEFAULT_CONFIG() { \
-    .i2s_bck_pin = 41, \
-    .i2s_ws_pin = 42, \
-    .i2s_data_pin = 2, \
+    .i2s_bck_pin = 15, \
+    .i2s_ws_pin = 2, \
+    .i2s_data_pin = 39, \
     .detect_threshold = 0.6f, \
     .sliding_window_size = 5, \
     .cooldown_ms = 1000, \

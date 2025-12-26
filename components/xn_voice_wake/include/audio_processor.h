@@ -36,11 +36,11 @@ typedef void (*audio_data_cb_t)(const int16_t *data, size_t samples);
  * @brief 默认音频配置
  */
 #define AUDIO_PROCESSOR_DEFAULT_CONFIG() { \
-    .bck_pin = 41, \
-    .ws_pin = 42, \
-    .data_pin = 2, \
+    .bck_pin = 15, \
+    .ws_pin = 2, \
+    .data_pin = 39, \
     .sample_rate = 16000, \
-    .bits_per_sample = 16, \
+    .bits_per_sample = 32, \
 }
 
 /**

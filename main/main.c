@@ -104,9 +104,10 @@ void app_main(void)
 
 	// 初始化语音唤醒模块
 	voice_wake_config_t wake_cfg = VOICE_WAKE_DEFAULT_CONFIG();
-	wake_cfg.i2s_bck_pin = 41;      // 根据实际硬件修改
-	wake_cfg.i2s_ws_pin = 42;
-	wake_cfg.i2s_data_pin = 2;
+	// 硬件引脚配置（与 xn_audio_manager 一致）
+	wake_cfg.i2s_bck_pin = 15;      // BCLK
+	wake_cfg.i2s_ws_pin = 2;        // LRCK
+	wake_cfg.i2s_data_pin = 39;     // DIN
 	wake_cfg.detect_threshold = 0.6f;
 	wake_cfg.detect_cb = on_wake_word_detected;
 	wake_cfg.state_cb = on_wake_state_changed;
