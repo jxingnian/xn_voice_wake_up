@@ -43,7 +43,7 @@ import asyncio
 import os
 
 # ========== 配置区域 ==========
-WAKE_WORD = "你好小明"  # 修改为你的唤醒词
+WAKE_WORD = "你好星年"  # 修改为你的唤醒词
 OUTPUT_DIR = "wake_word_audio"
 # ==============================
 
@@ -104,7 +104,7 @@ python generate_wake_word.py
 这将自动生成约 210 条不同声音、语速、音调的唤醒词音频。
 
 
-### 方案二：生成背景噪声/负样本
+### 方案二：生成负样本音频
 
 创建文件 `generate_negative.py`：
 
@@ -116,80 +116,7 @@ import random
 
 # ========== 配置区域 ==========
 OUTPUT_DIR = "negative_audio"
-# ==============================
-
-# 随机词语（用于生成"非唤醒词"样本）
-RANDOM_WORDS = [
-    "今天天气不错",
-    "打开灯",
-    "关闭空调",
-    "播放音乐",
-    "现在几点了",
-    "明天有雨吗",
-    "帮我设个闹钟",
-    "声音大一点",
-    "声音小一点",
-    "下一首歌",
-    "暂停播放",
-    "继续播放",
-    "我要睡觉了",
-    "早上好",
-    "晚安",
-    "谢谢你",
-    "没问题",
-    "好的",
-    "不要",
-    "等一下",
-]
-
-VOICES = [
-    "zh-CN-XiaoxiaoNeural",
-    "zh-CN-YunxiNeural",
-    "zh-CN-YunyangNeural",
-    "zh-CN-XiaoyiNeural",
-]
-
-RATES = ["-20%", "+0%", "+20%"]
-
-async def generate_negative():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    count = 0
-    
-    for word in RANDOM_WORDS:
-        for voice in VOICES:
-            rate = random.choice(RATES)
-            filename = f"{OUTPUT_DIR}/neg_{count:04d}.mp3"
-            
-            tts = edge_tts.Communicate(
-                text=word,
-                voice=voice,
-                rate=rate
-            )
-            
-            await tts.save(filename)
-            count += 1
-            print(f"[{count}] 生成: {filename} - {word}")
-    
-    print(f"\n完成！共生成 {count} 条负样本音频")
-
-if __name__ == "__main__":
-    asyncio.run(generate_negative())
-```
-
-### 方案三：生成更多负样本（扩展版）
-
-创建文件 `generate_negative_extended.py`，生成更丰富的负样本：
-
-```python
-import edge_tts
-import asyncio
-import os
-import random
-
-# ========== 配置区域 ==========
-OUTPUT_DIR = "negative_audio"
-WAKE_WORD = "你好小明"  # 你的唤醒词，用于生成相似但不同的词
+WAKE_WORD = "你好星年"  # 你的唤醒词，用于生成相似但不同的词
 # ==============================
 
 # 日常对话词语
@@ -205,17 +132,16 @@ DAILY_WORDS = [
 
 # 相似发音词语（重要！减少误唤醒）
 SIMILAR_WORDS = [
-    "你好", "小明", "你好啊", "小明同学",
-    "你好小", "好小明", "你小明", "你好明",
-    "李小明", "王小明", "小明你好",
-    "你好小红", "你好小刚", "你好小李",
+    "你好", "星年", "你好啊", "星年好",
+    "你好星", "好星年", "你星年", "你好年",
+    "李星年", "王星年", "星年你好",
+    "你好星星", "你好新年", "你好心愿",
 ]
 
 # 数字和常用短语
 NUMBERS_AND_PHRASES = [
     "一二三四五", "六七八九十",
     "星期一", "星期二", "星期三",
-    "一月", "二月", "三月",
     "是的", "不是", "可以", "不行",
     "等一下", "马上", "稍等",
 ]
@@ -224,16 +150,16 @@ NUMBERS_AND_PHRASES = [
 ALL_NEGATIVE_WORDS = DAILY_WORDS + SIMILAR_WORDS + NUMBERS_AND_PHRASES
 
 VOICES = [
-    "zh-CN-XiaoxiaoNeural",
-    "zh-CN-YunxiNeural",
-    "zh-CN-YunyangNeural",
-    "zh-CN-XiaoyiNeural",
-    "zh-CN-XiaochenNeural",
+    "zh-CN-XiaoxiaoNeural",    # 女声-晓晓
+    "zh-CN-YunxiNeural",       # 男声-云希
+    "zh-CN-YunyangNeural",     # 男声-云扬
+    "zh-CN-XiaoyiNeural",      # 女声-晓伊
+    "zh-CN-XiaochenNeural",    # 女声-晓辰
 ]
 
 RATES = ["-20%", "-10%", "+0%", "+10%", "+20%"]
 
-async def generate_negative_extended():
+async def generate_negative():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     count = 0
@@ -260,7 +186,7 @@ async def generate_negative_extended():
     print(f"保存在 {OUTPUT_DIR}/ 目录")
 
 if __name__ == "__main__":
-    asyncio.run(generate_negative_extended())
+    asyncio.run(generate_negative())
 ```
 
 **这个脚本会生成约 100-150 条负样本**，包括：
