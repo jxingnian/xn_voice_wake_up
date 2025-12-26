@@ -57,7 +57,7 @@ EI_WEAK_FN EI_IMPULSE_ERROR ei_run_impulse_check_canceled() {
 }
 
 EI_WEAK_FN EI_IMPULSE_ERROR ei_sleep(int32_t time_ms) {
-    vTaskDelay(time_ms / portTICK_RATE_MS);
+    vTaskDelay(time_ms / portTICK_PERIOD_MS);
     return EI_IMPULSE_OK;
 }
 

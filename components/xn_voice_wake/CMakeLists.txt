@@ -61,6 +61,7 @@ idf_component_register(
     SRCS ${COMPONENT_SRCS}
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
     REQUIRES driver esp_timer freertos
+    PRIV_REQUIRES esp-dsp
 )
 
 # 编译选项
