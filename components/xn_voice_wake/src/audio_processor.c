@@ -13,7 +13,7 @@
 static const char *TAG = "audio_proc";
 
 // I2S 配置
-#define I2S_NUM             I2S_NUM_1   // 使用 I2S 端口 1
+#define I2S_PORT            1           // 使用 I2S 端口 1
 #define DMA_BUF_COUNT       4
 #define DMA_BUF_LEN         512
 #define BIT_SHIFT           14          // 32bit 转 16bit 的右移位数
@@ -83,7 +83,7 @@ esp_err_t audio_processor_init(const audio_processor_config_t *config)
     memcpy(&s_audio.config, config, sizeof(audio_processor_config_t));
 
     // I2S 通道配置
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM, I2S_ROLE_MASTER);
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_PORT, I2S_ROLE_MASTER);
     chan_cfg.dma_desc_num = DMA_BUF_COUNT;
     chan_cfg.dma_frame_num = DMA_BUF_LEN;
 
