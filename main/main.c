@@ -2,9 +2,9 @@
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-23 20:11:36
- * @FilePath: \xn_ota_manger\main\main.c
- * @Description: esp32 OTA管理组件 By.星年
+ * @LastEditTime: 2025-12-26 23:30:00
+ * @FilePath: \xn_voice_wake_up\main\main.c
+ * @Description: esp32 语音唤醒组件 By.星年
  */
 
 #include <stdio.h>
@@ -16,11 +16,30 @@
 
 #include "xn_wifi_manage.h"
 #include "http_ota_manager.h"
+#include "voice_wake_module.h"
 
 static const char *TAG = "app_main";
 
 /* 仅在首次拿到 IP 后初始化一次 OTA 管理 */
 static bool s_ota_inited = false;
+
+/*
+ * @brief 唤醒词检测回调
+ */
+static void on_wake_word_detected(int model_index, float confidence, void *user_data)
+{
+	ESP_LOGI(TAG, ">>> 检测到唤醒词! 置信度: %.2f <<<", confidence);
+	// TODO: 在这里添加唤醒后的处理逻辑
+}
+
+/*
+ * @brief 状态变化回调
+ */
+static void on_wake_state_changed(voice_wake_state_t state, void *user_data)
+{
+	const char *state_str[] = {"IDLE", "LISTENING", "DETECTED", "ERROR"};
+	ESP_LOGI(TAG, "语音唤醒状态: %s", state_str[state]);
+}
 
 /*
  * @brief OTA 初始化任务
@@ -81,12 +100,30 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
  */
 void app_main(void)
 {
-	printf("esp32 OTA管理组件 By.星年\n");
+	printf("esp32 语音唤醒组件 By.星年\n");
 
+	// 初始化语音唤醒模块
+	voice_wake_config_t wake_cfg = VOICE_WAKE_DEFAULT_CONFIG();
+	wake_cfg.i2s_bck_pin = 41;      // 根据实际硬件修改
+	wake_cfg.i2s_ws_pin = 42;
+	wake_cfg.i2s_data_pin = 2;
+	wake_cfg.detect_threshold = 0.6f;
+	wake_cfg.detect_cb = on_wake_word_detected;
+	wake_cfg.state_cb = on_wake_state_changed;
+
+	esp_err_t ret = voice_wake_init(&wake_cfg);
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG, "voice_wake_init failed: %s", esp_err_to_name(ret));
+	} else {
+		// 开始监听
+		voice_wake_start();
+	}
+
+	// 初始化 WiFi 管理
 	wifi_manage_config_t wifi_cfg = WIFI_MANAGE_DEFAULT_CONFIG();
 	wifi_cfg.wifi_event_cb        = wifi_manage_event_cb;
 
-	esp_err_t ret = wifi_manage_init(&wifi_cfg);
+	ret = wifi_manage_init(&wifi_cfg);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "wifi_manage_init failed: %s", esp_err_to_name(ret));
 	}
