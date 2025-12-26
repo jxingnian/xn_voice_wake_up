@@ -16,183 +16,80 @@
 ### 安装 Python 依赖
 
 ```bash
-# 安装 edge-tts（用于生成唤醒词音频）
 pip install edge-tts
+```
 
-# 安装 pydub（用于音频处理，可选）
-pip install pydub
+### 安装 ffmpeg（必须）
+
+Edge Impulse 只支持 WAV 格式，需要 ffmpeg 转换音频格式。
+
+**Windows 安装方法：**
+
+```bash
+# 方法一：使用 winget（推荐）
+winget install ffmpeg
+
+# 方法二：使用 scoop
+scoop install ffmpeg
+
+# 方法三：手动下载
+# 1. 访问 https://ffmpeg.org/download.html
+# 2. 下载 Windows 版本
+# 3. 解压后把 bin 目录添加到系统 PATH
+```
+
+验证安装：
+```bash
+ffmpeg -version
 ```
 
 ### 注册 Edge Impulse 账号
 
 1. 打开 https://edgeimpulse.com
 2. 点击 "Sign up" 注册（可用 GitHub 账号登录）
-3. 免费版足够个人项目使用
+3. 免费版支持 20 分钟音频，足够个人项目使用
 
 ---
 
 ## 音频生成
 
-### 方案一：使用 Edge TTS 批量生成（推荐）
+### 生成唤醒词音频（正样本）
 
-创建文件 `generate_wake_word.py`：
+脚本位置：`doc/generate_wake_word.py`
 
 ```python
-import edge_tts
-import asyncio
-import os
-
-# ========== 配置区域 ==========
-WAKE_WORD = "你好星年"  # 修改为你的唤醒词
-OUTPUT_DIR = "wake_word_audio"
-# ==============================
-
-# 中文声音列表
-VOICES = [
-    "zh-CN-XiaoxiaoNeural",    # 女声-晓晓
-    "zh-CN-YunxiNeural",       # 男声-云希
-    "zh-CN-YunyangNeural",     # 男声-云扬
-    "zh-CN-XiaoyiNeural",      # 女声-晓伊
-    "zh-CN-XiaochenNeural",    # 女声-晓辰
-    "zh-CN-XiaohanNeural",     # 女声-晓涵
-    "zh-CN-XiaomengNeural",    # 女声-晓梦
-    "zh-CN-XiaomoNeural",      # 女声-晓墨
-    "zh-CN-XiaoqiuNeural",     # 女声-晓秋
-    "zh-CN-XiaoruiNeural",     # 女声-晓睿
-]
-
-# 语速变化
-RATES = ["-30%", "-20%", "-10%", "+0%", "+10%", "+20%", "+30%"]
-
-# 音调变化
-PITCHES = ["-10Hz", "+0Hz", "+10Hz"]
-
-async def generate_audio():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    count = 0
-    total = len(VOICES) * len(RATES) * len(PITCHES)
-    
-    for voice in VOICES:
-        for rate in RATES:
-            for pitch in PITCHES:
-                filename = f"{OUTPUT_DIR}/wake_{count:04d}.mp3"
-                
-                tts = edge_tts.Communicate(
-                    text=WAKE_WORD,
-                    voice=voice,
-                    rate=rate,
-                    pitch=pitch
-                )
-                
-                await tts.save(filename)
-                count += 1
-                print(f"[{count}/{total}] 生成: {filename} (声音:{voice}, 语速:{rate}, 音调:{pitch})")
-    
-    print(f"\n完成！共生成 {count} 条音频，保存在 {OUTPUT_DIR}/ 目录")
-
-if __name__ == "__main__":
-    asyncio.run(generate_audio())
+# 修改唤醒词
+WAKE_WORD = "你好星年"  # 改成你的唤醒词
 ```
 
-运行脚本：
-
+运行：
 ```bash
-python generate_wake_word.py
+python doc/generate_wake_word.py
 ```
 
-这将自动生成约 210 条不同声音、语速、音调的唤醒词音频。
+**生成结果：**
+- 约 200-300 条 WAV 音频
+- 包含 9 种不同声音（男声、女声、方言）
+- 7 种语速变化（-30% ~ +30%）
+- 5 种音调变化（-10Hz ~ +10Hz）
+- 格式：16kHz, 16bit, 单声道
+- 保存在 `wake_word_audio/` 目录
 
+### 生成负样本音频
 
-### 方案二：生成负样本音频
+脚本位置：`doc/generate_negative.py`
 
-创建文件 `generate_negative.py`：
-
-```python
-import edge_tts
-import asyncio
-import os
-import random
-
-# ========== 配置区域 ==========
-OUTPUT_DIR = "negative_audio"
-WAKE_WORD = "你好星年"  # 你的唤醒词，用于生成相似但不同的词
-# ==============================
-
-# 日常对话词语
-DAILY_WORDS = [
-    "今天天气不错", "明天有雨吗", "现在几点了",
-    "打开灯", "关闭灯", "开灯", "关灯",
-    "打开空调", "关闭空调", "温度调高", "温度调低",
-    "播放音乐", "暂停播放", "继续播放", "下一首", "上一首",
-    "声音大一点", "声音小一点", "静音",
-    "帮我设个闹钟", "取消闹钟",
-    "我要睡觉了", "早上好", "晚安", "谢谢", "好的", "不要",
-]
-
-# 相似发音词语（重要！减少误唤醒）
-SIMILAR_WORDS = [
-    "你好", "星年", "你好啊", "星年好",
-    "你好星", "好星年", "你星年", "你好年",
-    "李星年", "王星年", "星年你好",
-    "你好星星", "你好新年", "你好心愿",
-]
-
-# 数字和常用短语
-NUMBERS_AND_PHRASES = [
-    "一二三四五", "六七八九十",
-    "星期一", "星期二", "星期三",
-    "是的", "不是", "可以", "不行",
-    "等一下", "马上", "稍等",
-]
-
-# 所有负样本词语
-ALL_NEGATIVE_WORDS = DAILY_WORDS + SIMILAR_WORDS + NUMBERS_AND_PHRASES
-
-VOICES = [
-    "zh-CN-XiaoxiaoNeural",    # 女声-晓晓
-    "zh-CN-YunxiNeural",       # 男声-云希
-    "zh-CN-YunyangNeural",     # 男声-云扬
-    "zh-CN-XiaoyiNeural",      # 女声-晓伊
-    "zh-CN-XiaochenNeural",    # 女声-晓辰
-]
-
-RATES = ["-20%", "-10%", "+0%", "+10%", "+20%"]
-
-async def generate_negative():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    count = 0
-    
-    for word in ALL_NEGATIVE_WORDS:
-        # 每个词用 2 种不同声音和语速
-        for _ in range(2):
-            voice = random.choice(VOICES)
-            rate = random.choice(RATES)
-            
-            filename = f"{OUTPUT_DIR}/neg_{count:04d}.mp3"
-            
-            tts = edge_tts.Communicate(
-                text=word,
-                voice=voice,
-                rate=rate
-            )
-            
-            await tts.save(filename)
-            count += 1
-            print(f"[{count}] {word} -> {filename}")
-    
-    print(f"\n完成！共生成 {count} 条负样本音频")
-    print(f"保存在 {OUTPUT_DIR}/ 目录")
-
-if __name__ == "__main__":
-    asyncio.run(generate_negative())
+运行：
+```bash
+python doc/generate_negative.py
 ```
 
-**这个脚本会生成约 100-150 条负样本**，包括：
-- 日常对话词语
-- **相似发音词语**（重要！减少误唤醒）
-- 数字和常用短语
+**生成结果：**
+- 约 100-150 条 WAV 音频
+- 包含日常对话词语
+- 包含相似发音词语（减少误唤醒）
+- 包含数字和常用短语
+- 保存在 `negative_audio/` 目录
 
 ---
 
@@ -202,22 +99,20 @@ if __name__ == "__main__":
 
 1. 登录 https://studio.edgeimpulse.com
 2. 点击 "Create new project"
-3. 项目名称：`wake-word-detection`（或你喜欢的名字）
+3. 项目名称：`wake-word-detection`
 4. 选择 "Audio" 类型
 
 ### 步骤 2：上传数据
 
 1. 点击左侧菜单 "Data acquisition"
 2. 点击 "Upload data"
-3. 选择上传方式：
-   - **唤醒词音频**：Label 填 `wake_word`
-   - **负样本音频**：Label 填 `noise` 或 `unknown`
-4. 上传之前生成的音频文件
-
-**数据分配建议**：
-- Training: 80%
-- Testing: 20%
-（上传时可以选择自动分配）
+3. 上传设置：
+   - 上传模式：选择一个文件夹
+   - 上传至类别：训练
+   - 标签：输入标签
+4. 分两次上传：
+   - **唤醒词音频**：选择 `wake_word_audio` 文件夹，标签填 `wake_word`
+   - **负样本音频**：选择 `negative_audio` 文件夹，标签填 `noise`
 
 ### 步骤 3：创建 Impulse
 
@@ -231,7 +126,7 @@ Time series data:
 - Frequency: 16000 Hz
 
 Processing block:
-- 选择 "Audio (MFCC)" 或 "Audio (MFE)"
+- 选择 "Audio (MFCC)"
 
 Learning block:
 - 选择 "Classification"
@@ -241,24 +136,33 @@ Learning block:
 
 ### 步骤 4：生成特征
 
-1. 点击左侧菜单 "MFCC"（或你选择的处理块）
-2. 点击 "Generate features"
-3. 等待处理完成
-4. 查看特征可视化，确保唤醒词和噪声能够区分
+1. 点击左侧菜单 "MFCC"
+2. 使用默认参数，点击 "Save parameters"
+3. 点击 "Generate features"
+4. 等待处理完成
+5. 查看特征可视化，确保 wake_word 和 noise 能够区分
 
 ### 步骤 5：训练模型
 
 1. 点击左侧菜单 "Classifier"
-2. 配置训练参数：
+2. 在 "Neural Network settings" 区域配置：
 
 ```
-Number of training cycles: 100
-Learning rate: 0.005
-Minimum confidence rating: 0.6
+Training settings:
+- Number of training cycles: 100
+- Learning rate: 0.005
+- Training processor: CPU（免费版只能用 CPU）
+
+Audio training options:
+- Data augmentation: 可选勾选（增加数据多样性）
+
+Neural network architecture:
+- 使用默认配置即可，或点击 "Load preset" 选择预设
 ```
 
-3. 点击 "Start training"
+3. 点击 "Save & train" 按钮
 4. 等待训练完成（几分钟）
+5. 查看 "Training output" 区域的准确率
 
 ### 步骤 6：测试模型
 
@@ -270,11 +174,6 @@ Minimum confidence rating: 0.6
 - 90%+ 为良好
 - 95%+ 为优秀
 
-如果准确率不够，可以：
-- 增加训练数据
-- 调整训练参数
-- 增加训练轮数
-
 ---
 
 ## 模型导出与部署
@@ -282,20 +181,11 @@ Minimum confidence rating: 0.6
 ### 导出 TensorFlow Lite 模型
 
 1. 点击左侧菜单 "Deployment"
-2. 选择 "TensorFlow Lite (float32)" 或 "TensorFlow Lite (int8 quantized)"
+2. 选择 "TensorFlow Lite (int8 quantized)"（推荐，模型更小）
 3. 点击 "Build"
 4. 下载生成的 ZIP 文件
 
-**推荐选择 int8 quantized**：模型更小，适合 ESP32
-
-### 导出为 Arduino 库（可选）
-
-1. 选择 "Arduino library"
-2. 点击 "Build"
-3. 下载 ZIP 文件
-4. 在 Arduino IDE 中导入库
-
-### 导出为 C++ 源码
+### 导出为 C++ 源码（推荐用于 ESP32）
 
 1. 选择 "C++ library"
 2. 点击 "Build"
@@ -310,12 +200,11 @@ ZIP 文件包含：
 
 ## 在 ESP32 上使用模型
 
-### 方法一：使用 Edge Impulse SDK
+### 使用 Edge Impulse SDK
 
 ```cpp
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 
-// 音频缓冲区
 static float features[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
 void classify_audio() {
@@ -327,7 +216,6 @@ void classify_audio() {
     EI_IMPULSE_ERROR res = run_classifier(&signal, &result, false);
     
     if (res == EI_IMPULSE_OK) {
-        // 检查是否检测到唤醒词
         for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {
             if (strcmp(result.classification[i].label, "wake_word") == 0) {
                 if (result.classification[i].value > 0.8) {
@@ -339,36 +227,38 @@ void classify_audio() {
 }
 ```
 
-### 方法二：使用 TFLite Micro
-
-将导出的 `.tflite` 模型转换为 C 数组，然后使用 TensorFlow Lite Micro 加载运行。
-
 ---
 
 ## 常见问题
 
+### Q: 上传失败，提示 Invalid mimetype？
+
+Edge Impulse 只支持 WAV 格式。确保：
+1. 已安装 ffmpeg
+2. 使用最新版本的生成脚本（会自动转换为 WAV）
+
 ### Q: 准确率太低怎么办？
 
-1. 增加训练数据（更多声音、更多变化）
+1. 增加训练数据
 2. 确保唤醒词和负样本数量平衡
-3. 增加训练轮数
+3. 增加训练轮数到 200
 4. 尝试不同的处理块（MFCC vs MFE）
 
 ### Q: 误唤醒太多怎么办？
 
-1. 增加更多负样本（特别是相似发音的词）
-2. 提高置信度阈值
+1. 在 `generate_negative.py` 中添加更多相似发音词
+2. 提高置信度阈值（0.8 → 0.9）
 3. 添加滑动窗口平均
 
 ### Q: 漏唤醒太多怎么办？
 
-1. 增加更多唤醒词样本（不同声音、语速）
+1. 增加更多唤醒词样本
 2. 降低置信度阈值
 3. 确保训练数据覆盖实际使用场景
 
 ### Q: 模型太大怎么办？
 
-1. 使用 int8 量化
+1. 使用 int8 量化（推荐）
 2. 减少神经网络层数
 3. 使用更小的窗口大小
 
@@ -378,4 +268,4 @@ void classify_audio() {
 
 - Edge Impulse 官方文档：https://docs.edgeimpulse.com
 - Edge TTS 项目：https://github.com/rany2/edge-tts
-- TensorFlow Lite Micro：https://www.tensorflow.org/lite/microcontrollers
+- ffmpeg 下载：https://ffmpeg.org/download.html

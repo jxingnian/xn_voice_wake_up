@@ -2,10 +2,10 @@ import edge_tts
 import asyncio
 import os
 import random
+import subprocess
 
 # ========== 配置区域 ==========
 OUTPUT_DIR = "negative_audio"
-WAKE_WORD = "你好星年"  # 你的唤醒词，用于生成相似但不同的词
 # ==============================
 
 # 日常对话词语
@@ -35,38 +35,45 @@ NUMBERS_AND_PHRASES = [
     "等一下啊", "马上来", "稍等一下",
 ]
 
-# 所有负样本词语
 ALL_NEGATIVE_WORDS = DAILY_WORDS + SIMILAR_WORDS + NUMBERS_AND_PHRASES
 
 VOICES = [
-    "zh-CN-XiaoxiaoNeural",    # 女声-晓晓
-    "zh-CN-YunxiNeural",       # 男声-云希
-    "zh-CN-YunyangNeural",     # 男声-云扬
-    "zh-CN-XiaoyiNeural",      # 女声-晓伊
-    "zh-CN-XiaochenNeural",    # 女声-晓辰
+    "zh-CN-XiaoxiaoNeural",
+    "zh-CN-YunxiNeural",
+    "zh-CN-YunyangNeural",
+    "zh-CN-XiaoyiNeural",
+    "zh-CN-YunjianNeural",
 ]
 
-# 使用较温和的语速变化，避免极端值导致错误
 RATES = ["-10%", "+0%", "+10%"]
+
+def convert_mp3_to_wav(mp3_path, wav_path):
+    """使用 ffmpeg 转换 MP3 到 WAV (16kHz, 16bit, mono)"""
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', mp3_path,
+            '-ar', '16000',
+            '-ac', '1',
+            '-sample_fmt', 's16',
+            wav_path
+        ], capture_output=True, check=True)
+        os.remove(mp3_path)
+        return True
+    except:
+        return False
 
 async def generate_single(word, voice, rate, filename, retries=3):
     """生成单个音频，带重试机制"""
     for attempt in range(retries):
         try:
-            tts = edge_tts.Communicate(
-                text=word,
-                voice=voice,
-                rate=rate
-            )
+            tts = edge_tts.Communicate(text=word, voice=voice, rate=rate)
             await tts.save(filename)
             return True
-        except Exception as e:
+        except:
             if attempt < retries - 1:
-                # 重试时换一个声音
                 voice = random.choice(VOICES)
                 await asyncio.sleep(0.5)
             else:
-                print(f"  [跳过] {word} 生成失败: {e}")
                 return False
     return False
 
@@ -76,28 +83,29 @@ async def generate_negative():
     count = 0
     failed = 0
     
+    print("生成负样本音频（WAV 格式）...\n")
+    
     for word in ALL_NEGATIVE_WORDS:
-        # 每个词用 2 种不同声音和语速
         for i in range(2):
             voice = random.choice(VOICES)
             rate = random.choice(RATES)
             
-            filename = f"{OUTPUT_DIR}/neg_{count:04d}.mp3"
+            mp3_file = f"{OUTPUT_DIR}/temp_{count:04d}.mp3"
+            wav_file = f"{OUTPUT_DIR}/neg_{count:04d}.wav"
             
-            success = await generate_single(word, voice, rate, filename)
+            success = await generate_single(word, voice, rate, mp3_file)
             
-            if success:
+            if success and convert_mp3_to_wav(mp3_file, wav_file):
                 count += 1
-                print(f"[{count}] {word} -> {filename}")
+                print(f"[{count}] {word}")
             else:
                 failed += 1
             
-            # 添加小延迟，避免请求过快
             await asyncio.sleep(0.1)
     
     print(f"\n完成！共生成 {count} 条负样本音频")
     if failed > 0:
-        print(f"跳过 {failed} 条失败的音频")
+        print(f"跳过 {failed} 条")
     print(f"保存在 {OUTPUT_DIR}/ 目录")
 
 if __name__ == "__main__":
