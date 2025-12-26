@@ -17,12 +17,26 @@ file(GLOB_RECURSE EI_SDK_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/tflite-model/*.cpp"
 )
 
+# Edge Impulse porting 源文件（使用 SDK 自带的 ESP-IDF 实现）
+set(EI_PORTING_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ei_classifier_porting.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/debug_log.cpp"
+)
+
+# ESP-NN 源文件（ESP32-S3 优化）
+file(GLOB_RECURSE ESP_NN_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/*.S"
+)
+
 # 组件源文件
 set(COMPONENT_SRCS
     "src/voice_wake_module.c"
     "src/audio_processor.c"
     "src/detection_engine.cpp"
     ${EI_SDK_SOURCES}
+    ${EI_PORTING_SOURCES}
+    ${ESP_NN_SOURCES}
 )
 
 # 包含目录
@@ -33,6 +47,7 @@ set(COMPONENT_INCLUDE_DIRS
     "edge-impulse-sdk/classifier"
     "edge-impulse-sdk/dsp"
     "edge-impulse-sdk/porting"
+    "edge-impulse-sdk/porting/espressif/ESP-NN/include"
     "edge-impulse-sdk/tensorflow"
     "edge-impulse-sdk/third_party"
     "edge-impulse-sdk/third_party/flatbuffers/include"
@@ -60,9 +75,10 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wno-error=missing-field-initializers
     -Wno-missing-field-initializers
     -Wno-uninitialized
+    -Wno-format
 )
 
-# 定义 Edge Impulse 相关宏
+# 定义 Edge Impulse 相关宏（ESP32-S3 启用 ESP-NN 优化）
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     EI_PORTING_ESPRESSIF=1
     EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN=1
