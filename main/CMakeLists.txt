@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c"
-                       PRIV_REQUIRES xn_ota_manger xn_web_wifi_manger xn_voice_wake
+                       PRIV_REQUIRES xn_ota_manager xn_web_wifi_manger xn_voice_wake
                        INCLUDE_DIRS "")
