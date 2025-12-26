@@ -17,16 +17,45 @@ file(GLOB_RECURSE EI_SDK_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/tflite-model/*.cpp"
 )
 
-# Edge Impulse porting 源文件（使用 SDK 自带的 ESP-IDF 实现）
+# Edge Impulse porting 源文件
 set(EI_PORTING_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ei_classifier_porting.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/debug_log.cpp"
 )
 
-# ESP-NN 源文件（ESP32-S3 优化）
-file(GLOB_RECURSE ESP_NN_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/*.S"
+# ESP-NN C 源文件
+file(GLOB ESP_NN_C_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/activation_functions/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/basic_math/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/fully_connected/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/pooling/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/softmax/*.c"
+)
+
+# ESP-NN 汇编源文件（ESP32-S3 优化）
+set(ESP_NN_ASM_SOURCES
+    # common
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/common/esp_nn_common_functions_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/common/esp_nn_multiply_by_quantized_mult_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/common/esp_nn_multiply_by_quantized_mult_ver1_esp32s3.S"
+    # convolution
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_conv_s16_mult4_1x1_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_conv_s16_mult8_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_conv_s8_filter_aligned_input_padded_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_conv_s8_mult8_1x1_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult1_3x3_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult1_3x3_no_pad_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult1_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult4_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult8_3x3_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s16_mult8_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/convolution/esp_nn_depthwise_conv_s8_mult1_3x3_padded_esp32s3.S"
+    # fully_connected
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/fully_connected/esp_nn_fully_connected_s8_esp32s3.S"
+    # pooling
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/pooling/esp_nn_avg_pool_s8_esp32s3.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN/src/pooling/esp_nn_max_pool_s8_esp32s3.S"
 )
 
 # 组件源文件
@@ -36,7 +65,8 @@ set(COMPONENT_SRCS
     "src/detection_engine.cpp"
     ${EI_SDK_SOURCES}
     ${EI_PORTING_SOURCES}
-    ${ESP_NN_SOURCES}
+    ${ESP_NN_C_SOURCES}
+    ${ESP_NN_ASM_SOURCES}
 )
 
 # 包含目录
@@ -83,4 +113,5 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     EI_PORTING_ESPRESSIF=1
     EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN=1
+    EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN_S3=1
 )
