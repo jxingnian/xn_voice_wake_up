@@ -41,25 +41,25 @@
 
 #include <stdint.h>
 #include "model_metadata.h"
-#include "tflite-model/tflite_learn_863593_6_compiled.h"
+#include "tflite-model/tflite_learn_863593_8_compiled.h"
 #include "edge-impulse-sdk/classifier/ei_model_types.h"
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
 #include "edge-impulse-sdk/classifier/postprocessing/ei_postprocessing_common.h"
 
-const char* ei_classifier_inferencing_categories_863593_1[] = { "noise", "wake_word" };
+const char* ei_classifier_inferencing_categories_863593_1[] = { "noise", "unknown", "wake_word" };
 
-ei_dsp_named_axis_t ei_dsp_config_863593_5_named_axes[] = {
+ei_dsp_named_axis_t ei_dsp_config_863593_7_named_axes[] = {
     { .name = "Signal", .axis = 0 }
 };
-size_t ei_dsp_config_863593_5_named_axes_size = 1;
-EI_CLASSIFIER_DSP_AXES_INDEX_TYPE ei_dsp_config_863593_5_axes[] = { 0 };
-const uint32_t ei_dsp_config_863593_5_axes_size = 1;
-ei_dsp_config_mfcc_t ei_dsp_config_863593_5 = {
-    5, // uint32_t blockId
+size_t ei_dsp_config_863593_7_named_axes_size = 1;
+EI_CLASSIFIER_DSP_AXES_INDEX_TYPE ei_dsp_config_863593_7_axes[] = { 0 };
+const uint32_t ei_dsp_config_863593_7_axes_size = 1;
+ei_dsp_config_mfcc_t ei_dsp_config_863593_7 = {
+    7, // uint32_t blockId
     4, // int implementationVersion
     1, // int length of axes
-    ei_dsp_config_863593_5_named_axes, // named axes
-    ei_dsp_config_863593_5_named_axes_size, // size of the named axes array
+    ei_dsp_config_863593_7_named_axes, // named axes
+    ei_dsp_config_863593_7_named_axes_size, // size of the named axes array
     13, // int num_cepstral
     0.02f, // float frame_length
     0.02f, // float frame_stride
@@ -74,55 +74,55 @@ ei_dsp_config_mfcc_t ei_dsp_config_863593_5 = {
 
 const uint8_t ei_dsp_blocks_863593_1_size = 1;
 ei_model_dsp_t ei_dsp_blocks_863593_1[ei_dsp_blocks_863593_1_size] = {
-    { // DSP block 5
-        5,
+    { // DSP block 7
+        7,
         650, // output size
         &extract_mfcc_features, // DSP function pointer
-        (void*)&ei_dsp_config_863593_5, // pointer to config struct
-        ei_dsp_config_863593_5_axes, // array of offsets into the input stream, one for each axis
-        ei_dsp_config_863593_5_axes_size, // number of axes
+        (void*)&ei_dsp_config_863593_7, // pointer to config struct
+        ei_dsp_config_863593_7_axes, // array of offsets into the input stream, one for each axis
+        ei_dsp_config_863593_7_axes_size, // number of axes
         1, // version
         nullptr, // factory function
         nullptr, // data normalization config
     }
 };
-const ei_config_tflite_eon_graph_t ei_config_graph_863593_6 = {
+const ei_config_tflite_eon_graph_t ei_config_graph_863593_8 = {
     .implementation_version = 1,
-    .model_init = &tflite_learn_863593_6_init,
-    .model_invoke = &tflite_learn_863593_6_invoke,
-    .model_reset = &tflite_learn_863593_6_reset,
-    .model_input = &tflite_learn_863593_6_input,
-    .model_output = &tflite_learn_863593_6_output,
+    .model_init = &tflite_learn_863593_8_init,
+    .model_invoke = &tflite_learn_863593_8_invoke,
+    .model_reset = &tflite_learn_863593_8_reset,
+    .model_input = &tflite_learn_863593_8_input,
+    .model_output = &tflite_learn_863593_8_output,
 };
 
-const uint8_t ei_output_tensors_indices_863593_6[1] = { 0 };
-const uint8_t ei_output_tensors_size_863593_6 = 1;
-ei_learning_block_config_tflite_graph_t ei_learning_block_config_863593_6 = {
+const uint8_t ei_output_tensors_indices_863593_8[1] = { 0 };
+const uint8_t ei_output_tensors_size_863593_8 = 1;
+ei_learning_block_config_tflite_graph_t ei_learning_block_config_863593_8 = {
     .implementation_version = 1,
-    .block_id = 6,
-    .output_tensors_indices = ei_output_tensors_indices_863593_6,
-    .output_tensors_size = ei_output_tensors_size_863593_6,
+    .block_id = 8,
+    .output_tensors_indices = ei_output_tensors_indices_863593_8,
+    .output_tensors_size = ei_output_tensors_size_863593_8,
     .quantized = 1,
     .compiled = 1,
-    .graph_config = (void*)&ei_config_graph_863593_6,
+    .graph_config = (void*)&ei_config_graph_863593_8,
     .dequantize_output = 0,
 };
 
 const uint8_t ei_learning_blocks_863593_1_size = 1;
-const uint32_t ei_learning_block_863593_6_inputs[1] = { 5 };
-const uint8_t ei_learning_block_863593_6_inputs_size = 1;
+const uint32_t ei_learning_block_863593_8_inputs[1] = { 7 };
+const uint8_t ei_learning_block_863593_8_inputs_size = 1;
 const ei_learning_block_t ei_learning_blocks_863593_1[ei_learning_blocks_863593_1_size] = {
     {
-        6,
+        8,
         &run_nn_inference,
-        (void*)&ei_learning_block_config_863593_6,
+        (void*)&ei_learning_block_config_863593_8,
         EI_CLASSIFIER_IMAGE_SCALING_NONE,
-        ei_learning_block_863593_6_inputs,
-        ei_learning_block_863593_6_inputs_size,
+        ei_learning_block_863593_8_inputs,
+        ei_learning_block_863593_8_inputs_size,
     },
 };
 
-ei_fill_result_classification_i8_config_t ei_fill_result_classification_i8_config_863593_6 = {
+ei_fill_result_classification_i8_config_t ei_fill_result_classification_i8_config_863593_8 = {
     .zero_point = -128,
     .scale = 0.00390625
 };
@@ -130,14 +130,14 @@ ei_fill_result_classification_i8_config_t ei_fill_result_classification_i8_confi
 const size_t ei_postprocessing_blocks_863593_1_size = 1;
 const ei_postprocessing_block_t ei_postprocessing_blocks_863593_1[ei_postprocessing_blocks_863593_1_size] = {
     {
-        .block_id = 6,
+        .block_id = 8,
         .type = EI_CLASSIFIER_MODE_CLASSIFICATION,
         .init_fn = NULL,
         .deinit_fn = NULL,
         .postprocess_fn = &process_classification_i8,
         .display_fn = NULL,
-        .config = (void*)&ei_fill_result_classification_i8_config_863593_6,
-        .input_block_id = 6
+        .config = (void*)&ei_fill_result_classification_i8_config_863593_8,
+        .input_block_id = 8
     },
 };
 
@@ -151,7 +151,7 @@ const ei_impulse_t impulse_863593_1 = {
     .project_name = "xingnian-project-1",
     .impulse_id = 1,
     .impulse_name = "Impulse #1",
-    .deploy_version = 1,
+    .deploy_version = 2,
 
     .nn_input_frame_size = 650,
     .raw_sample_count = 16000,
@@ -182,7 +182,7 @@ const ei_impulse_t impulse_863593_1 = {
     .slices_per_model_window = 4,
 
     .has_anomaly = EI_ANOMALY_TYPE_UNKNOWN,
-    .label_count = 2,
+    .label_count = 3,
     .categories = ei_classifier_inferencing_categories_863593_1,
     .results_type = EI_CLASSIFIER_TYPE_CLASSIFICATION,
     .freeform_outputs_size = freeform_outputs_863593_1_size,
