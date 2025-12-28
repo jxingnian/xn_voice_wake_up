@@ -98,6 +98,18 @@ static int32_t afe_read_callback(void *buffer, int buf_sz, void *user_ctx, TickT
             return buf_sz;
         }
 
+        // 调试：每秒打印一次麦克风数据统计
+        static int debug_cnt = 0;
+        if (++debug_cnt >= 31) {  // 约 1 秒（16000/512=31）
+            debug_cnt = 0;
+            int16_t max_val = 0, min_val = 0;
+            for (size_t i = 0; i < mic_got; i++) {
+                if (wrapper->mic_buffer[i] > max_val) max_val = wrapper->mic_buffer[i];
+                if (wrapper->mic_buffer[i] < min_val) min_val = wrapper->mic_buffer[i];
+            }
+            ESP_LOGI(TAG, "MIC 数据: samples=%d, min=%d, max=%d", (int)mic_got, min_val, max_val);
+        }
+
         // 读取回采数据（用于回声消除）
         size_t ref_got = ring_buffer_read(wrapper->reference_rb, wrapper->ref_buffer, mic_got, 0);
 
@@ -137,24 +149,29 @@ static void afe_result_callback(afe_fetch_result_t *result, void *user_ctx)
 
     // 使用 MultiNet 命令词识别作为唤醒
     if (wrapper->use_multinet && wrapper->multinet && wrapper->mn_model_data) {
-        // 将 AFE 处理后的音频送入 MultiNet 进行命令词识别
-        if (result->data && result->data_size > 0) {
+        // 只在 VAD 检测到人声时才送数据给 MultiNet
+        if (result->vad_state == VAD_SPEECH && result->data && result->data_size > 0) {
             esp_mn_state_t mn_state = wrapper->multinet->detect(wrapper->mn_model_data, (int16_t *)result->data);
             
             if (mn_state == ESP_MN_STATE_DETECTED) {
                 esp_mn_results_t *mn_result = wrapper->multinet->get_results(wrapper->mn_model_data);
+                
                 if (mn_result && mn_result->num > 0) {
-                    // 命令词识别成功，触发唤醒事件
-                    event.type = AFE_EVENT_WAKEUP_DETECTED;
-                    event.data.wakeup.wake_word_index = mn_result->command_id[0];
-                    event.data.wakeup.volume_db = result->data_volume;
-
+                    float confidence = mn_result->prob[0];
+                    
                     ESP_LOGI(TAG, "🎤 MultiNet 命令词检测: ID=%d, 词=%s, 置信度=%.2f",
                              mn_result->command_id[0],
-                             mn_result->string,
-                             mn_result->prob[0]);
-
-                    wrapper->event_callback(&event, wrapper->event_ctx);
+                             mn_result->string ? mn_result->string : "NULL",
+                             confidence);
+                    
+                    // 置信度阈值过滤（低于 0.5 忽略）
+                    if (confidence >= 0.5f) {
+                        // 命令词识别成功，触发唤醒事件
+                        event.type = AFE_EVENT_WAKEUP_DETECTED;
+                        event.data.wakeup.wake_word_index = mn_result->command_id[0];
+                        event.data.wakeup.volume_db = result->data_volume;
+                        wrapper->event_callback(&event, wrapper->event_ctx);
+                    }
                 }
             }
         }
