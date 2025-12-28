@@ -108,7 +108,7 @@ void app_main(void)
 	wake_cfg.i2s_bck_pin = 15;      // BCLK
 	wake_cfg.i2s_ws_pin = 2;        // LRCK
 	wake_cfg.i2s_data_pin = 39;     // DIN
-	wake_cfg.detect_threshold = 0.85f;  // 提高阈值减少误触发
+	wake_cfg.detect_threshold = 0.5f;  // 提高阈值减少误触发
 	wake_cfg.detect_cb = on_wake_word_detected;
 	wake_cfg.state_cb = on_wake_state_changed;
 

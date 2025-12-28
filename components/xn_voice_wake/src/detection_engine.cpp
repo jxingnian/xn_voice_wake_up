@@ -142,6 +142,12 @@ extern "C" esp_err_t detection_engine_process(const int16_t *audio_data, size_t 
             EI_IMPULSE_ERROR err = run_classifier(&signal, &result, false);
 
             if (err == EI_IMPULSE_OK) {
+                // 打印所有类别的概率（调试用）
+                ESP_LOGI(TAG, "noise: %.2f, unknown: %.2f, wake_word: %.2f",
+                    result.classification[0].value,
+                    result.classification[1].value,
+                    result.classification[2].value);
+                
                 // 查找 wake_word 标签的概率
                 float wake_prob = 0.0f;
                 int wake_index = -1;
