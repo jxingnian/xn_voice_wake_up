@@ -126,6 +126,7 @@ void app_main(void)
 	audio_cfg.hw_config.mic.sample_rate = 16000;
 	audio_cfg.hw_config.mic.bits = 32;
 	audio_cfg.hw_config.mic.bit_shift = 14;
+	audio_cfg.hw_config.button.gpio = -1;      // 不使用按键
 	
 	// 唤醒词配置 - 使用 MultiNet 命令词识别
 	audio_cfg.wakeup_config.enabled = true;

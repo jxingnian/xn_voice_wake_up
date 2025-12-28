@@ -286,14 +286,14 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
         .read_cb = afe_read_callback,              // 数据读取回调
         .read_ctx = wrapper,                       // 读取回调上下文
         .feed_task_setting = {
-            .stack_size = 10 * 1024,               // Feed 任务栈大小（缩减以降低内部RAM占用）
+            .stack_size = 10 * 1024,               // Feed 任务栈大小
             .prio = 8,                             // Feed 任务优先级
-            .core = 1,                             // Feed 任务运行核心（保持在 CPU1）
+            .core = 1,                             // Feed 任务运行核心
         },
         .fetch_task_setting = {
-            .stack_size = 10 * 1024,                // Fetch 任务栈大小（缩减占用）
-            .prio = 8,                             // Fetch 任务优先级（与Feed相同，时间片轮转）
-            .core = 0,                             // Fetch 任务运行在 CPU0，与 Feed 分核
+            .stack_size = 16 * 1024,               // Fetch 任务栈大小（增大以支持 MultiNet）
+            .prio = 8,                             // Fetch 任务优先级
+            .core = 0,                             // Fetch 任务运行在 CPU0
         },
     };
 

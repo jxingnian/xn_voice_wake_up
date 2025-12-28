@@ -472,19 +472,23 @@ esp_err_t audio_manager_init(const audio_mgr_config_t *config)
         goto fail;
     }
 
-    button_handler_config_t button_cfg = {
-        .gpio = s_ctx.config.hw_config.button.gpio,
-        .active_low = s_ctx.config.hw_config.button.active_low,
-        .debounce_ms = 50,
-        .callback = button_event_handler,
-        .user_ctx = NULL,
-    };
+    // 仅当配置了有效 GPIO 时才创建按键处理器
+    if (s_ctx.config.hw_config.button.gpio >= 0) {
+        button_handler_config_t button_cfg = {
+            .gpio = s_ctx.config.hw_config.button.gpio,
+            .active_low = s_ctx.config.hw_config.button.active_low,
+            .debounce_ms = 50,
+            .callback = button_event_handler,
+            .user_ctx = NULL,
+        };
 
-    s_ctx.button_handler = button_handler_create(&button_cfg);
-    if (!s_ctx.button_handler) {
-        ESP_LOGE(TAG, "按键处理器创建失败");
-        ret = ESP_ERR_NO_MEM;
-        goto fail;
+        s_ctx.button_handler = button_handler_create(&button_cfg);
+        if (!s_ctx.button_handler) {
+            ESP_LOGW(TAG, "按键处理器创建失败，继续运行");
+        }
+    } else {
+        ESP_LOGI(TAG, "未配置按键 GPIO，跳过按键处理器");
+        s_ctx.button_handler = NULL;
     }
 
     s_ctx.initialized = true;
