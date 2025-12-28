@@ -85,7 +85,8 @@ typedef struct {
 /** 唤醒词配置（应用层提供，可后期网页配置） */
 typedef struct {
     bool enabled;                   ///< 是否启用唤醒词检测
-    const char *wake_word_name;     ///< 唤醒词名称（如"小鸭小鸭"）
+    bool use_multinet;              ///< 使用 MultiNet 命令词识别（true）还是 WakeNet（false）
+    const char *wake_word_name;     ///< 唤醒词名称（WakeNet如"小鸭小鸭"）或拼音（MultiNet如"ni hao xing nian"）
     const char *model_partition;    ///< 模型分区名称（默认"model"）
     int sensitivity;                ///< 灵敏度 (0-3: 低/中/高/最高，对应DET_MODE_xxx)
     int wakeup_timeout_ms;          ///< 唤醒超时（无人说话自动结束）
@@ -137,6 +138,7 @@ typedef struct {
 #define AUDIO_MANAGER_DEFAULT_WAKEUP_CONFIG()                        \
     (audio_mgr_wakeup_config_t){                                     \
         .enabled = true,                                             \
+        .use_multinet = false,                                       \
         .wake_word_name = "小鸭小鸭",                                \
         .model_partition = "model",                                  \
         .sensitivity = 2,                                            \

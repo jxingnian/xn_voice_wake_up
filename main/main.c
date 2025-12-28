@@ -2,9 +2,9 @@
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-12-26 23:30:00
+ * @LastEditTime: 2025-12-28 20:30:00
  * @FilePath: \xn_voice_wake_up\main\main.c
- * @Description: esp32 语音唤醒组件 By.星年
+ * @Description: esp32 语音唤醒组件 By.星年 - 使用 MultiNet 命令词识别
  */
 
 #include <stdio.h>
@@ -16,7 +16,7 @@
 
 #include "xn_wifi_manage.h"
 #include "http_ota_manager.h"
-#include "voice_wake_module.h"
+#include "audio_manager.h"
 
 static const char *TAG = "app_main";
 
@@ -24,21 +24,35 @@ static const char *TAG = "app_main";
 static bool s_ota_inited = false;
 
 /*
- * @brief 唤醒词检测回调
+ * @brief 音频管理器事件回调
  */
-static void on_wake_word_detected(int model_index, float confidence, void *user_data)
+static void on_audio_event(const audio_mgr_event_t *event, void *user_ctx)
 {
-	ESP_LOGI(TAG, ">>> 检测到唤醒词! 置信度: %.2f <<<", confidence);
-	// TODO: 在这里添加唤醒后的处理逻辑
+	switch (event->type) {
+	case AUDIO_MGR_EVENT_WAKEUP_DETECTED:
+		ESP_LOGI(TAG, ">>> 检测到唤醒词! 索引=%d, 音量=%.1f dB <<<",
+			 event->data.wakeup.wake_word_index,
+			 event->data.wakeup.volume_db);
+		// TODO: 在这里添加唤醒后的处理逻辑
+		break;
+	case AUDIO_MGR_EVENT_VAD_START:
+		ESP_LOGI(TAG, "检测到人声开始");
+		break;
+	case AUDIO_MGR_EVENT_VAD_END:
+		ESP_LOGI(TAG, "检测到人声结束");
+		break;
+	default:
+		break;
+	}
 }
 
 /*
- * @brief 状态变化回调
+ * @brief 音频管理器状态回调
  */
-static void on_wake_state_changed(voice_wake_state_t state, void *user_data)
+static void on_audio_state(audio_mgr_state_t state, void *user_ctx)
 {
-	const char *state_str[] = {"IDLE", "LISTENING", "DETECTED", "ERROR"};
-	ESP_LOGI(TAG, "语音唤醒状态: %s", state_str[state]);
+	const char *state_str[] = {"DISABLED", "IDLE", "LISTENING", "RECORDING", "PLAYBACK"};
+	ESP_LOGI(TAG, "音频管理器状态: %s", state_str[state]);
 }
 
 /*
@@ -100,24 +114,40 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
  */
 void app_main(void)
 {
-	printf("esp32 语音唤醒组件 By.星年\n");
+	printf("esp32 语音唤醒组件 By.星年 - MultiNet 命令词识别\n");
 
-	// 初始化语音唤醒模块
-	voice_wake_config_t wake_cfg = VOICE_WAKE_DEFAULT_CONFIG();
-	// 硬件引脚配置（与 xn_audio_manager 一致）
-	wake_cfg.i2s_bck_pin = 15;      // BCLK
-	wake_cfg.i2s_ws_pin = 2;        // LRCK
-	wake_cfg.i2s_data_pin = 39;     // DIN
-	wake_cfg.detect_threshold = 0.5f;  // 提高阈值减少误触发
-	wake_cfg.detect_cb = on_wake_word_detected;
-	wake_cfg.state_cb = on_wake_state_changed;
+	// 初始化音频管理器（使用 MultiNet 命令词识别）
+	audio_mgr_config_t audio_cfg = AUDIO_MANAGER_DEFAULT_CONFIG();
+	
+	// 硬件引脚配置
+	audio_cfg.hw_config.mic.bclk_gpio = 15;    // BCLK
+	audio_cfg.hw_config.mic.lrck_gpio = 2;     // LRCK/WS
+	audio_cfg.hw_config.mic.din_gpio = 39;     // DIN
+	audio_cfg.hw_config.mic.sample_rate = 16000;
+	audio_cfg.hw_config.mic.bits = 32;
+	audio_cfg.hw_config.mic.bit_shift = 14;
+	
+	// 唤醒词配置 - 使用 MultiNet 命令词识别
+	audio_cfg.wakeup_config.enabled = true;
+	audio_cfg.wakeup_config.use_multinet = true;  // 使用 MultiNet
+	audio_cfg.wakeup_config.wake_word_name = "ni hao xing nian";  // 拼音格式
+	audio_cfg.wakeup_config.model_partition = "model";
+	audio_cfg.wakeup_config.sensitivity = 2;
+	
+	// 回调配置
+	audio_cfg.event_callback = on_audio_event;
+	audio_cfg.state_callback = on_audio_state;
+	audio_cfg.user_ctx = NULL;
 
-	esp_err_t ret = voice_wake_init(&wake_cfg);
+	esp_err_t ret = audio_manager_init(&audio_cfg);
 	if (ret != ESP_OK) {
-		ESP_LOGE(TAG, "voice_wake_init failed: %s", esp_err_to_name(ret));
+		ESP_LOGE(TAG, "audio_manager_init failed: %s", esp_err_to_name(ret));
 	} else {
 		// 开始监听
-		voice_wake_start();
+		ret = audio_manager_start();
+		if (ret != ESP_OK) {
+			ESP_LOGE(TAG, "audio_manager_start failed: %s", esp_err_to_name(ret));
+		}
 	}
 
 	// 初始化 WiFi 管理

@@ -2,9 +2,9 @@
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-11-27 19:17:04
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-28 20:27:24
+ * @LastEditTime: 2025-12-28 20:00:00
  * @FilePath: \xn_esp32_audio\components\xn_audio_manager\src\afe_wrapper.c
- * @Description: AFE 管理模块实现
+ * @Description: AFE 管理模块实现 - 支持 WakeNet 和 MultiNet 命令词唤醒
  * 
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
  */
@@ -15,6 +15,10 @@
 #include "esp_afe_sr_iface.h"
 #include "esp_afe_config.h"
 #include "model_path.h"
+#include "esp_mn_iface.h"
+#include "esp_mn_models.h"
+#include "esp_mn_speech_commands.h"
+#include "esp_process_sdkconfig.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,6 +33,11 @@ typedef struct afe_wrapper_s {
     esp_gmf_afe_manager_handle_t afe_manager;  ///< AFE Manager 句柄
     esp_afe_sr_iface_t *afe_handle;            ///< AFE 接口句柄
     srmodel_list_t *models;                     ///< 语音识别模型列表
+    
+    // MultiNet 命令词识别
+    esp_mn_iface_t *multinet;                  ///< MultiNet 接口
+    model_iface_data_t *mn_model_data;         ///< MultiNet 模型数据
+    bool use_multinet;                          ///< 是否使用 MultiNet 作为唤醒
     
     audio_bsp_handle_t bsp_handle;              ///< BSP 句柄，用于读取麦克风数据
     ring_buffer_handle_t reference_rb;         ///< 回采数据环形缓冲区
@@ -115,6 +124,7 @@ static int32_t afe_read_callback(void *buffer, int buf_sz, void *user_ctx, TickT
  * @brief AFE 结果回调函数
  * 
  * 处理 AFE 的处理结果，包括唤醒词检测、VAD 状态变化和录音数据
+ * 支持 WakeNet 和 MultiNet 两种唤醒方式
  * 
  * @param result AFE 处理结果
  * @param user_ctx 用户上下文，指向 afe_wrapper_t 结构体
@@ -126,16 +136,41 @@ static void afe_result_callback(afe_fetch_result_t *result, void *user_ctx)
 
     afe_event_t event = {0};
 
-    // 处理唤醒词检测事件
-    if (result->wakeup_state == WAKENET_DETECTED) {
-        event.type = AFE_EVENT_WAKEUP_DETECTED;
-        event.data.wakeup.wake_word_index = result->wake_word_index;
-        event.data.wakeup.volume_db = result->data_volume;
+    // 使用 MultiNet 命令词识别作为唤醒
+    if (wrapper->use_multinet && wrapper->multinet && wrapper->mn_model_data) {
+        // 将 AFE 处理后的音频送入 MultiNet 进行命令词识别
+        if (result->data && result->data_size > 0) {
+            esp_mn_state_t mn_state = wrapper->multinet->detect(wrapper->mn_model_data, (int16_t *)result->data);
+            
+            if (mn_state == ESP_MN_STATE_DETECTED) {
+                esp_mn_results_t *mn_result = wrapper->multinet->get_results(wrapper->mn_model_data);
+                if (mn_result && mn_result->num > 0) {
+                    // 命令词识别成功，触发唤醒事件
+                    event.type = AFE_EVENT_WAKEUP_DETECTED;
+                    event.data.wakeup.wake_word_index = mn_result->command_id[0];
+                    event.data.wakeup.volume_db = result->data_volume;
 
-        ESP_LOGI(TAG, "🎤 唤醒词检测: 索引=%d, 音量=%.1f dB",
-                 result->wake_word_index, result->data_volume);
+                    ESP_LOGI(TAG, "🎤 MultiNet 命令词检测: ID=%d, 词=%s, 置信度=%.2f",
+                             mn_result->command_id[0],
+                             mn_result->string,
+                             mn_result->prob[0]);
 
-        wrapper->event_callback(&event, wrapper->event_ctx);
+                    wrapper->event_callback(&event, wrapper->event_ctx);
+                }
+            }
+        }
+    } else {
+        // 使用 WakeNet 唤醒词检测
+        if (result->wakeup_state == WAKENET_DETECTED) {
+            event.type = AFE_EVENT_WAKEUP_DETECTED;
+            event.data.wakeup.wake_word_index = result->wake_word_index;
+            event.data.wakeup.volume_db = result->data_volume;
+
+            ESP_LOGI(TAG, "🎤 WakeNet 唤醒词检测: 索引=%d, 音量=%.1f dB",
+                     result->wake_word_index, result->data_volume);
+
+            wrapper->event_callback(&event, wrapper->event_ctx);
+        }
     }
 
     // 处理 VAD（语音活动检测）状态变化
@@ -224,7 +259,16 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
     afe_config->vad_mode = config->vad_config.vad_mode;             // VAD 模式
     afe_config->vad_min_speech_ms = config->vad_config.min_speech_ms;   // 最小语音时长
     afe_config->vad_min_noise_ms = config->vad_config.min_silence_ms;   // 最小静音时长
-    afe_config->wakenet_init = config->wakeup_config.enabled;      // 唤醒词检测
+    
+    // 如果使用 MultiNet，禁用 WakeNet
+    wrapper->use_multinet = config->wakeup_config.use_multinet;
+    if (wrapper->use_multinet) {
+        afe_config->wakenet_init = false;  // 禁用 WakeNet
+        ESP_LOGI(TAG, "使用 MultiNet 命令词识别作为唤醒");
+    } else {
+        afe_config->wakenet_init = config->wakeup_config.enabled;  // 使用 WakeNet
+        ESP_LOGI(TAG, "使用 WakeNet 唤醒词检测");
+    }
     afe_config->wakenet_mode = config->wakeup_config.sensitivity;   // 唤醒词灵敏度
     afe_config->afe_perferred_core = 0;                             // 优先运行在核心 0
     afe_config->afe_perferred_priority = 8;                         // 任务优先级
@@ -267,6 +311,63 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
     // 设置结果回调
     esp_gmf_afe_manager_set_result_cb(wrapper->afe_manager, afe_result_callback, wrapper);
 
+    // 初始化 MultiNet 命令词识别
+    if (wrapper->use_multinet && config->wakeup_config.wake_word_name) {
+        ESP_LOGI(TAG, "初始化 MultiNet 命令词识别...");
+        
+        // 获取 MultiNet 模型
+        char *mn_name = esp_srmodel_filter(wrapper->models, ESP_MN_PREFIX, NULL);
+        if (!mn_name) {
+            ESP_LOGE(TAG, "未找到 MultiNet 模型");
+            esp_gmf_afe_manager_destroy(wrapper->afe_manager);
+            esp_srmodel_deinit(wrapper->models);
+            free(wrapper);
+            return NULL;
+        }
+        ESP_LOGI(TAG, "使用 MultiNet 模型: %s", mn_name);
+        
+        // 创建 MultiNet 实例
+        wrapper->multinet = esp_mn_handle_from_name(mn_name);
+        if (!wrapper->multinet) {
+            ESP_LOGE(TAG, "MultiNet 接口获取失败");
+            esp_gmf_afe_manager_destroy(wrapper->afe_manager);
+            esp_srmodel_deinit(wrapper->models);
+            free(wrapper);
+            return NULL;
+        }
+        
+        // 创建 MultiNet 模型数据
+        wrapper->mn_model_data = wrapper->multinet->create(mn_name, 5760);
+        if (!wrapper->mn_model_data) {
+            ESP_LOGE(TAG, "MultiNet 模型数据创建失败");
+            esp_gmf_afe_manager_destroy(wrapper->afe_manager);
+            esp_srmodel_deinit(wrapper->models);
+            free(wrapper);
+            return NULL;
+        }
+        
+        // 清空默认命令词
+        esp_mn_commands_clear();
+        
+        // 添加自定义命令词（从配置获取拼音）
+        // wake_word_name 格式: "ni hao xing nian"
+        esp_mn_commands_add(0, (char *)config->wakeup_config.wake_word_name);
+        ESP_LOGI(TAG, "添加命令词: ID=0, 拼音=%s", config->wakeup_config.wake_word_name);
+        
+        // 更新命令词到模型
+        esp_mn_error_t mn_err = esp_mn_commands_update();
+        if (mn_err != ESP_MN_OK) {
+            ESP_LOGE(TAG, "命令词更新失败: %d", mn_err);
+            wrapper->multinet->destroy(wrapper->mn_model_data);
+            esp_gmf_afe_manager_destroy(wrapper->afe_manager);
+            esp_srmodel_deinit(wrapper->models);
+            free(wrapper);
+            return NULL;
+        }
+        
+        ESP_LOGI(TAG, "✅ MultiNet 命令词识别初始化成功");
+    }
+
     ESP_LOGI(TAG, "✅ AFE 包装器创建成功");
     return wrapper;
 }
@@ -281,6 +382,14 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
 void afe_wrapper_destroy(afe_wrapper_handle_t wrapper)
 {
     if (!wrapper) return;
+
+    // 销毁 MultiNet
+    if (wrapper->multinet && wrapper->mn_model_data) {
+        wrapper->multinet->destroy(wrapper->mn_model_data);
+        wrapper->mn_model_data = NULL;
+        wrapper->multinet = NULL;
+        ESP_LOGI(TAG, "MultiNet 已销毁");
+    }
 
     // 销毁 AFE Manager
     if (wrapper->afe_manager) {

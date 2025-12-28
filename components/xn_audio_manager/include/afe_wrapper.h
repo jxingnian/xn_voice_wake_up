@@ -47,7 +47,8 @@ typedef void (*afe_record_callback_t)(const int16_t *pcm_data, size_t samples, v
 /** AFE 唤醒词配置 */
 typedef struct {
     bool enabled;
-    const char *wake_word_name;
+    bool use_multinet;              ///< 使用 MultiNet 命令词识别（true）还是 WakeNet（false）
+    const char *wake_word_name;     ///< 唤醒词名称（WakeNet）或拼音（MultiNet，如 "ni hao xing nian"）
     const char *model_partition;
     int sensitivity;
 } afe_wakeup_config_t;

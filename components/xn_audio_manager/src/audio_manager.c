@@ -440,6 +440,7 @@ esp_err_t audio_manager_init(const audio_mgr_config_t *config)
         .reference_rb = s_ctx.reference_rb,
         .wakeup_config = (afe_wakeup_config_t){
             .enabled = s_ctx.config.wakeup_config.enabled,
+            .use_multinet = s_ctx.config.wakeup_config.use_multinet,
             .wake_word_name = s_ctx.config.wakeup_config.wake_word_name,
             .model_partition = s_ctx.config.wakeup_config.model_partition,
             .sensitivity = s_ctx.config.wakeup_config.sensitivity,
