@@ -146,34 +146,57 @@ static void afe_result_callback(afe_fetch_result_t *result, void *user_ctx)
     if (!result || !wrapper || !wrapper->event_callback) return;
 
     afe_event_t event = {0};
+    
+    // 跟踪 VAD 状态变化
+    static bool vad_active = false;
 
     // 使用 MultiNet 命令词识别作为唤醒
     if (wrapper->use_multinet && wrapper->multinet && wrapper->mn_model_data) {
         // 只在 VAD 检测到人声时才送数据给 MultiNet
         if (result->vad_state == VAD_SPEECH && result->data && result->data_size > 0) {
+            if (!vad_active) {
+                vad_active = true;
+                // 语音开始，通知上层
+                event.type = AFE_EVENT_VAD_START;
+                wrapper->event_callback(&event, wrapper->event_ctx);
+            }
+            
             esp_mn_state_t mn_state = wrapper->multinet->detect(wrapper->mn_model_data, (int16_t *)result->data);
             
             if (mn_state == ESP_MN_STATE_DETECTED) {
                 esp_mn_results_t *mn_result = wrapper->multinet->get_results(wrapper->mn_model_data);
                 
                 if (mn_result && mn_result->num > 0) {
+                    int cmd_id = mn_result->command_id[0];
                     float confidence = mn_result->prob[0];
                     
-                    ESP_LOGI(TAG, "🎤 MultiNet 命令词检测: ID=%d, 词=%s, 置信度=%.2f",
-                             mn_result->command_id[0],
+                    ESP_LOGI(TAG, "🎤 MultiNet: ID=%d, 词=%s, 置信度=%.2f",
+                             cmd_id,
                              mn_result->string ? mn_result->string : "NULL",
                              confidence);
                     
-                    // 置信度阈值过滤（低于 0.5 忽略）
-                    if (confidence >= 0.5f) {
-                        // 命令词识别成功，触发唤醒事件
+                    // 只有 ID=0（唤醒词）且置信度 >= 0.5 才触发
+                    if (cmd_id == 0 && confidence >= 0.5f) {
                         event.type = AFE_EVENT_WAKEUP_DETECTED;
-                        event.data.wakeup.wake_word_index = mn_result->command_id[0];
+                        event.data.wakeup.wake_word_index = cmd_id;
                         event.data.wakeup.volume_db = result->data_volume;
                         wrapper->event_callback(&event, wrapper->event_ctx);
                     }
                 }
+                // 检测到结果后重置 MultiNet 状态
+                wrapper->multinet->clean(wrapper->mn_model_data);
+            } else if (mn_state == ESP_MN_STATE_TIMEOUT) {
+                // 超时，重置状态
+                wrapper->multinet->clean(wrapper->mn_model_data);
             }
+        } else if (result->vad_state == VAD_SILENCE && vad_active) {
+            // 语音结束
+            vad_active = false;
+            // 重置 MultiNet 状态，准备下一次识别
+            wrapper->multinet->clean(wrapper->mn_model_data);
+            
+            event.type = AFE_EVENT_VAD_END;
+            wrapper->event_callback(&event, wrapper->event_ctx);
         }
     } else {
         // 使用 WakeNet 唤醒词检测
@@ -187,21 +210,17 @@ static void afe_result_callback(afe_fetch_result_t *result, void *user_ctx)
 
             wrapper->event_callback(&event, wrapper->event_ctx);
         }
-    }
-
-    // 处理 VAD（语音活动检测）状态变化
-    static bool vad_active = false;
-
-    if (result->vad_state == VAD_SPEECH && !vad_active) {
-        // 检测到语音开始
-        vad_active = true;
-        event.type = AFE_EVENT_VAD_START;
-        wrapper->event_callback(&event, wrapper->event_ctx);
-    } else if (result->vad_state == VAD_SILENCE && vad_active) {
-        // 检测到语音结束
-        vad_active = false;
-        event.type = AFE_EVENT_VAD_END;
-        wrapper->event_callback(&event, wrapper->event_ctx);
+        
+        // VAD 状态处理
+        if (result->vad_state == VAD_SPEECH && !vad_active) {
+            vad_active = true;
+            event.type = AFE_EVENT_VAD_START;
+            wrapper->event_callback(&event, wrapper->event_ctx);
+        } else if (result->vad_state == VAD_SILENCE && vad_active) {
+            vad_active = false;
+            event.type = AFE_EVENT_VAD_END;
+            wrapper->event_callback(&event, wrapper->event_ctx);
+        }
     }
 
     // 处理录音数据回调
@@ -352,8 +371,8 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
             return NULL;
         }
         
-        // 创建 MultiNet 模型数据
-        wrapper->mn_model_data = wrapper->multinet->create(mn_name, 5760);
+        // 创建 MultiNet 模型数据（6000ms 超时）
+        wrapper->mn_model_data = wrapper->multinet->create(mn_name, 6000);
         if (!wrapper->mn_model_data) {
             ESP_LOGE(TAG, "MultiNet 模型数据创建失败");
             esp_gmf_afe_manager_destroy(wrapper->afe_manager);
@@ -362,14 +381,27 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
             return NULL;
         }
         
-        // 清空默认命令词并添加自定义命令词
-        // wake_word_name 格式: "ni hao xing nian"（拼音用空格分隔）
+        // 设置命令词
+        // 清空默认命令词
         esp_mn_commands_clear();
-        esp_mn_commands_add(1, (char *)config->wakeup_config.wake_word_name);
-        ESP_LOGI(TAG, "添加命令词: ID=1, 拼音=%s", config->wakeup_config.wake_word_name);
+        
+        // 添加唤醒命令词（ID=0）
+        // wake_word_name 格式: "ni hao xing nian"（拼音用空格分隔）
+        esp_mn_commands_add(0, (char *)config->wakeup_config.wake_word_name);
+        ESP_LOGI(TAG, "添加命令词: ID=0, 拼音=%s", config->wakeup_config.wake_word_name);
+        
+        // 添加一些常见的干扰词作为"垃圾桶"，吸收误识别（ID >= 100 表示忽略）
+        esp_mn_commands_add(100, "da kai");
+        esp_mn_commands_add(101, "guan bi");
+        esp_mn_commands_add(102, "shi de");
+        esp_mn_commands_add(103, "hao de");
+        esp_mn_commands_add(104, "bu yao");
         
         // 更新命令词到 MultiNet 模型
         esp_mn_commands_update(wrapper->multinet, wrapper->mn_model_data);
+        
+        // 打印命令词列表
+        esp_mn_commands_print();
         
         ESP_LOGI(TAG, "✅ MultiNet 命令词识别初始化成功");
     }
