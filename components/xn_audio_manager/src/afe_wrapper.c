@@ -112,12 +112,11 @@ static int32_t afe_read_callback(void *buffer, int buf_sz, void *user_ctx, TickT
             out_buf[i * 2 + 1] = wrapper->ref_buffer[i];  // R: 回采
         }
     } else {
-        // 未运行时填充静音，并临时不向 AFE 提供有效数据，避免在系统尚未开始监听时填满内部 ringbuffer
+        // 未运行时填充静音数据
         memset(out_buf, 0, buf_sz);
-        return 0;
     }
 
-    return mic_got * channels * sizeof(int16_t);
+    return buf_sz;
 }
 
 /**
@@ -346,19 +345,14 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
             return NULL;
         }
         
-        // 清空默认命令词
+        // 清空默认命令词并添加自定义命令词
+        // wake_word_name 格式: "ni hao xing nian"（拼音用空格分隔）
         esp_mn_commands_clear();
+        esp_mn_commands_add(1, (char *)config->wakeup_config.wake_word_name);
+        ESP_LOGI(TAG, "添加命令词: ID=1, 拼音=%s", config->wakeup_config.wake_word_name);
         
-        // 添加自定义命令词（从配置获取拼音）
-        // wake_word_name 格式: "ni hao xing nian"
-        esp_mn_commands_add(0, (char *)config->wakeup_config.wake_word_name);
-        ESP_LOGI(TAG, "添加命令词: ID=0, 拼音=%s", config->wakeup_config.wake_word_name);
-        
-        // 更新命令词到模型
-        esp_mn_commands_update();
-        
-        // 打印已添加的命令词
-        esp_mn_commands_print();
+        // 更新命令词到 MultiNet 模型
+        esp_mn_commands_update(wrapper->multinet, wrapper->mn_model_data);
         
         ESP_LOGI(TAG, "✅ MultiNet 命令词识别初始化成功");
     }
