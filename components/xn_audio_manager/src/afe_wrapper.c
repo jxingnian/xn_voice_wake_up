@@ -355,15 +355,10 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
         ESP_LOGI(TAG, "添加命令词: ID=0, 拼音=%s", config->wakeup_config.wake_word_name);
         
         // 更新命令词到模型
-        esp_mn_error_t mn_err = esp_mn_commands_update();
-        if (mn_err != ESP_MN_OK) {
-            ESP_LOGE(TAG, "命令词更新失败: %d", mn_err);
-            wrapper->multinet->destroy(wrapper->mn_model_data);
-            esp_gmf_afe_manager_destroy(wrapper->afe_manager);
-            esp_srmodel_deinit(wrapper->models);
-            free(wrapper);
-            return NULL;
-        }
+        esp_mn_commands_update();
+        
+        // 打印已添加的命令词
+        esp_mn_commands_print();
         
         ESP_LOGI(TAG, "✅ MultiNet 命令词识别初始化成功");
     }
