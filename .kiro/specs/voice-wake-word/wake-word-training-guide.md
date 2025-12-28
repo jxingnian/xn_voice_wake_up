@@ -75,7 +75,7 @@ python doc/generate_wake_word.py
 - 格式：16kHz, 16bit, 单声道
 - 保存在 `wake_word_audio/` 目录
 
-### 生成负样本音频
+### 生成负样本音频（语音）
 
 脚本位置：`doc/generate_negative.py`
 
@@ -90,6 +90,28 @@ python doc/generate_negative.py
 - 包含相似发音词语（减少误唤醒）
 - 包含数字和常用短语
 - 保存在 `negative_audio/` 目录
+
+### 生成噪声负样本（静音/环境噪声）
+
+脚本位置：`doc/generate_noise.py`
+
+运行：
+```bash
+pip install scipy  # 首次运行需安装依赖
+python doc/generate_noise.py
+```
+
+**生成结果：**
+- 100 条 WAV 音频
+- 包含以下类型：
+  - 静音样本（30个）- 极低噪声
+  - 白噪声（20个）- 不同强度
+  - 粉红噪声（20个）- 更接近环境噪声
+  - 电源哼声（10个）- 50Hz/60Hz
+  - 风扇噪声（20个）- 低频为主
+- 保存在 `noise_audio/` 目录
+
+**重要：** 噪声样本对减少误触发非常关键！如果模型在静音时也会触发，需要添加更多噪声负样本。
 
 ---
 
@@ -110,9 +132,14 @@ python doc/generate_negative.py
    - 上传模式：选择一个文件夹
    - 上传至类别：训练
    - 标签：输入标签
-4. 分两次上传：
+4. 分三次上传：
    - **唤醒词音频**：选择 `wake_word_audio` 文件夹，标签填 `wake_word`
-   - **负样本音频**：选择 `negative_audio` 文件夹，标签填 `noise`
+   - **语音负样本**：选择 `negative_audio` 文件夹，标签填 `unknown`
+   - **噪声负样本**：选择 `noise_audio` 文件夹，标签填 `noise`
+
+**数据比例建议：**
+- wake_word : unknown : noise ≈ 1 : 1 : 1
+- 例如：200 个唤醒词 + 150 个语音负样本 + 100 个噪声样本
 
 ### 步骤 3：创建 Impulse
 
@@ -173,6 +200,51 @@ Neural network architecture:
 **目标准确率**：
 - 90%+ 为良好
 - 95%+ 为优秀
+
+---
+
+## 模型更新流程
+
+当需要优化模型（如减少误触发）时，按以下步骤操作：
+
+### 1. 生成新的训练数据
+
+```bash
+# 生成噪声样本（如果还没有）
+python doc/generate_noise.py
+
+# 或生成更多唤醒词样本
+python doc/generate_wake_word.py
+```
+
+### 2. 上传到 Edge Impulse 并重新训练
+
+1. 登录 Edge Impulse Studio
+2. 进入 "Data acquisition"
+3. 上传新的音频文件，设置正确的标签
+4. 进入 "Classifier"，点击 "Save & train"
+
+### 3. 导出并替换模型
+
+1. 进入 "Deployment"
+2. 选择 "C++ library"，点击 "Build"
+3. 下载 ZIP 文件并解压
+4. 替换项目中的模型文件：
+
+```bash
+# 替换以下目录
+components/xn_voice_wake/model-parameters/   # 模型参数
+components/xn_voice_wake/tflite-model/       # TFLite 模型
+```
+
+### 4. 重新编译测试
+
+```bash
+# 清理并重新编译
+idf.py fullclean
+idf.py build
+idf.py flash monitor
+```
 
 ---
 
@@ -249,6 +321,20 @@ Edge Impulse 只支持 WAV 格式。确保：
 1. 在 `generate_negative.py` 中添加更多相似发音词
 2. 提高置信度阈值（0.8 → 0.9）
 3. 添加滑动窗口平均
+
+### Q: 静音/无人说话时也会触发？
+
+这是因为噪声负样本不足，解决方法：
+
+1. 运行 `python doc/generate_noise.py` 生成噪声样本
+2. 将 `noise_audio/` 上传到 Edge Impulse，标签设为 `noise`
+3. 重新训练模型
+4. 临时方案：提高阈值到 0.85 或更高
+
+```c
+// main.c 中修改阈值
+wake_cfg.detect_threshold = 0.85f;  // 提高阈值减少误触发
+```
 
 ### Q: 漏唤醒太多怎么办？
 
