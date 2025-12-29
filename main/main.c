@@ -1,8 +1,8 @@
 /*
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
- * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-12-28 20:30:00
+ * @LastEditors: xingnian j_xingnian@163.com
+ * @LastEditTime: 2025-12-29 20:08:39
  * @FilePath: \xn_voice_wake_up\main\main.c
  * @Description: esp32 语音唤醒组件 By.星年 - 使用 MultiNet 命令词识别
  */

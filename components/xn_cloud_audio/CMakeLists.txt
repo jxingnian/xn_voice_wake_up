@@ -1,0 +1,11 @@
+idf_component_register(
+    SRCS
+        "src/cloud_audio.c"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        esp_http_client
+        esp_wifi
+        json
+        xn_audio_manager
+)

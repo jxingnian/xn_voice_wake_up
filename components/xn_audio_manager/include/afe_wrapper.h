@@ -2,9 +2,9 @@
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-11-27 19:17:04
  * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-11-27 19:18:25
- * @FilePath: \xn_esp32_audio\components\audio_manager\include\afe_wrapper.h
- * @Description: AFE 管理模块 - 封装 AFE Manager 和语音识别功能
+ * @LastEditTime: 2025-12-29 20:00:00
+ * @FilePath: \xn_voice_wake_up\components\xn_audio_manager\include\afe_wrapper.h
+ * @Description: AFE 管理模块 - 封装 AFE Manager，仅提供 VAD 和音频处理功能
  * 
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
  */
@@ -22,7 +22,6 @@ extern "C" {
 
 /** AFE 事件类型 */
 typedef enum {
-    AFE_EVENT_WAKEUP_DETECTED,  ///< 唤醒词检测到
     AFE_EVENT_VAD_START,        ///< 人声开始
     AFE_EVENT_VAD_END,          ///< 人声结束
 } afe_event_type_t;
@@ -30,12 +29,6 @@ typedef enum {
 /** AFE 事件数据 */
 typedef struct {
     afe_event_type_t type;
-    union {
-        struct {
-            int wake_word_index;
-            float volume_db;
-        } wakeup;
-    } data;
 } afe_event_t;
 
 /** AFE 事件回调 */
@@ -43,15 +36,6 @@ typedef void (*afe_event_callback_t)(const afe_event_t *event, void *user_ctx);
 
 /** 录音数据回调 */
 typedef void (*afe_record_callback_t)(const int16_t *pcm_data, size_t samples, void *user_ctx);
-
-/** AFE 唤醒词配置 */
-typedef struct {
-    bool enabled;
-    bool use_multinet;              ///< 使用 MultiNet 命令词识别（true）还是 WakeNet（false）
-    const char *wake_word_name;     ///< 唤醒词名称（WakeNet）或拼音（MultiNet，如 "ni hao xing nian"）
-    const char *model_partition;
-    int sensitivity;
-} afe_wakeup_config_t;
 
 /** AFE VAD 配置 */
 typedef struct {
@@ -73,7 +57,6 @@ typedef struct {
 typedef struct {
     audio_bsp_handle_t bsp_handle;             ///< BSP 句柄
     ring_buffer_handle_t reference_rb;          ///< 回采缓冲区
-    afe_wakeup_config_t wakeup_config;          ///< 唤醒词配置
     afe_vad_config_t vad_config;                ///< VAD 配置
     afe_feature_config_t feature_config;        ///< 功能配置
     afe_event_callback_t event_callback;        ///< 事件回调
@@ -99,24 +82,6 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config);
  * @param wrapper AFE 包装器句柄
  */
 void afe_wrapper_destroy(afe_wrapper_handle_t wrapper);
-
-/**
- * @brief 更新唤醒词配置
- * @param wrapper AFE 包装器句柄
- * @param config 新配置
- * @return ESP_OK 成功
- */
-esp_err_t afe_wrapper_update_wakeup_config(afe_wrapper_handle_t wrapper, 
-                                            const afe_wakeup_config_t *config);
-
-/**
- * @brief 获取唤醒词配置
- * @param wrapper AFE 包装器句柄
- * @param config 输出配置
- * @return ESP_OK 成功
- */
-esp_err_t afe_wrapper_get_wakeup_config(afe_wrapper_handle_t wrapper, 
-                                         afe_wakeup_config_t *config);
 
 #ifdef __cplusplus
 }
