@@ -1,4 +1,4 @@
 version: "1.0.0"
 description: "云端音频管理组件 - WebSocket 连接、VAD 音频上传、唤醒词检测"
 dependencies:
-  espressif/esp_websocket_client: "^1.0.0"
+  espressif/esp_websocket_client: "~1.2.0"

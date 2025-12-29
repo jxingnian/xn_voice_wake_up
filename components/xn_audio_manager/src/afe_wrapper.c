@@ -23,7 +23,6 @@ static const char *TAG = "AFE_WRAPPER";
  */
 typedef struct afe_wrapper_s {
     esp_gmf_afe_manager_handle_t afe_manager;  ///< AFE Manager 句柄
-    esp_afe_sr_iface_t *afe_handle;            ///< AFE 接口句柄
     
     audio_bsp_handle_t bsp_handle;              ///< BSP 句柄
     ring_buffer_handle_t reference_rb;          ///< 回采数据环形缓冲区
@@ -178,7 +177,6 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
     afe_config->afe_ringbuf_size = 120;
 
     afe_config = afe_config_check(afe_config);
-    wrapper->afe_handle = esp_afe_handle_from_config(afe_config);
 
     esp_gmf_afe_manager_cfg_t mgr_cfg = {
         .afe_cfg = afe_config,
