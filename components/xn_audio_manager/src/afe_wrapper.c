@@ -1,9 +1,9 @@
 /*
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-11-27 19:17:04
- * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-12-28 20:00:00
- * @FilePath: \xn_esp32_audio\components\xn_audio_manager\src\afe_wrapper.c
+ * @LastEditors: xingnian j_xingnian@163.com
+ * @LastEditTime: 2025-12-29 14:14:55
+ * @FilePath: \xn_voice_wake_up\components\xn_audio_manager\src\afe_wrapper.c
  * @Description: AFE 管理模块实现 - 支持 WakeNet 和 MultiNet 命令词唤醒
  * 
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
