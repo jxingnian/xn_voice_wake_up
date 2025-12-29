@@ -5,7 +5,7 @@ idf_component_register(
         "include"
     REQUIRES
         esp_http_client
-        esp_wifi
+        esp_websocket_client
         json
         xn_audio_manager
 )

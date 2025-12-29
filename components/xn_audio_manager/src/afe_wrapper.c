@@ -1,8 +1,8 @@
 /*
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-11-27 19:17:04
- * @LastEditors: xingnian jixingnian@gmail.com
- * @LastEditTime: 2025-12-29 21:00:00
+ * @LastEditors: xingnian j_xingnian@163.com
+ * @LastEditTime: 2025-12-29 20:23:05
  * @FilePath: \xn_voice_wake_up\components\xn_audio_manager\src\afe_wrapper.c
  * @Description: AFE 管理模块实现 - 仅提供 VAD 和音频处理功能
  * 
@@ -36,7 +36,6 @@ typedef struct afe_wrapper_s {
     bool *running_ptr;                          ///< 指向运行状态标志的指针
     bool *recording_ptr;                        ///< 指向录音状态标志的指针
     
-    // 静态缓冲区
     int16_t mic_buffer[512];                    ///< 麦克风数据缓冲区
     int16_t ref_buffer[512];                    ///< 回采数据缓冲区
 } afe_wrapper_t;
@@ -51,7 +50,7 @@ static int32_t afe_read_callback(void *buffer, int buf_sz, void *user_ctx, TickT
 
     int16_t *out_buf = (int16_t *)buffer;
     const size_t total_samples = buf_sz / sizeof(int16_t);
-    const size_t channels = 2;  // MR: 麦克风+回采
+    const size_t channels = 2;
     const size_t frame_samples = total_samples / channels;
 
     if (frame_samples > 512) {
@@ -88,7 +87,6 @@ static int32_t afe_read_callback(void *buffer, int buf_sz, void *user_ctx, TickT
             memset(wrapper->ref_buffer + ref_got, 0, (mic_got - ref_got) * sizeof(int16_t));
         }
 
-        // 交织数据: MR 格式
         for (size_t i = 0; i < mic_got; i++) {
             out_buf[i * 2 + 0] = wrapper->mic_buffer[i];
             out_buf[i * 2 + 1] = wrapper->ref_buffer[i];
@@ -155,8 +153,7 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
     wrapper->running_ptr = config->running_ptr;
     wrapper->recording_ptr = config->recording_ptr;
 
-    // 配置 AFE（无唤醒词模型）
-    ESP_LOGI(TAG, "配置 AFE Manager（仅 VAD）...");
+    ESP_LOGI(TAG, "配置 AFE Manager (仅 VAD)...");
     afe_config_t *afe_config = afe_config_init("MR", NULL, AFE_TYPE_SR, 
                                                 config->feature_config.afe_mode);
     if (!afe_config) {
@@ -183,7 +180,6 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
     afe_config = afe_config_check(afe_config);
     wrapper->afe_handle = esp_afe_handle_from_config(afe_config);
 
-    // 创建 AFE Manager
     esp_gmf_afe_manager_cfg_t mgr_cfg = {
         .afe_cfg = afe_config,
         .read_cb = afe_read_callback,
@@ -211,7 +207,7 @@ afe_wrapper_handle_t afe_wrapper_create(const afe_wrapper_config_t *config)
 
     esp_gmf_afe_manager_set_result_cb(wrapper->afe_manager, afe_result_callback, wrapper);
 
-    ESP_LOGI(TAG, "✅ AFE 包装器创建成功（仅 VAD）");
+    ESP_LOGI(TAG, "✅ AFE 包装器创建成功 (仅 VAD)");
     return wrapper;
 }
 
