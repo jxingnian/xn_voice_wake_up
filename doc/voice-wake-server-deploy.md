@@ -178,7 +178,7 @@ GET /
 
 请求：
 ```bash
-curl http://localhost:8000/
+curl http://117.50.176.26:8000/
 ```
 
 响应：
@@ -205,9 +205,7 @@ Content-Type: multipart/form-data
 
 请求：
 ```bash
-curl -X POST http://localhost:8000/set_wake_word \
-  -F "user_id=user001" \
-  -F "wake_word=你好星年"
+curl -X POST http://117.50.176.26:8000/set_wake_word -F "user_id=user001" -F "wake_word=你好星年"
 ```
 
 响应：
@@ -234,7 +232,7 @@ Content-Type: multipart/form-data
 
 请求：
 ```bash
-curl -X POST http://localhost:8000/register_voice \
+curl -X POST http://117.50.176.26:8000/register_voice \
   -F "user_id=user001" \
   -F "audio=@my_voice.wav"
 ```
@@ -263,7 +261,7 @@ Content-Type: multipart/form-data
 
 请求：
 ```bash
-curl -X POST http://localhost:8000/recognize \
+curl -X POST http://117.50.176.26:8000/recognize \
   -F "user_id=user001" \
   -F "audio=@test.wav"
 ```
@@ -301,7 +299,7 @@ import asyncio
 import websockets
 
 async def test_ws():
-    uri = "ws://localhost:8000/ws/user001"
+    uri = "ws://117.50.176.26:8000/ws/user001"
     async with websockets.connect(uri) as ws:
         # 发送音频数据（16kHz, 16bit, mono, PCM）
         with open("test.raw", "rb") as f:
