@@ -93,12 +93,6 @@ pip install speechbrain
 
 # ============ 辅助模块 ============
 
-# Silero VAD - 语音活动检测
-pip install silero-vad
-
-# TTS - 文字转语音
-pip install TTS
-
 # 语言识别
 pip install langid
 
@@ -116,7 +110,7 @@ pip install numpy scipy librosa soundfile
 ```bash
 pip install --upgrade pip && \
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
-pip install openai-whisper faster-whisper speechbrain silero-vad TTS langid && \
+pip install openai-whisper faster-whisper speechbrain langid && \
 pip install fastapi uvicorn websockets python-multipart numpy scipy librosa soundfile
 ```
 
@@ -127,15 +121,11 @@ pip install fastapi uvicorn websockets python-multipart numpy scipy librosa soun
 ```bash
 cat > /root/voice-wake-server/server.py << 'ENDOFFILE'
 """
-全功能语音处理服务器
+语音唤醒服务器（简化版）
 功能：
 1. 语音识别（Whisper/Faster-Whisper）
 2. 声纹识别（SpeechBrain）
-3. 语音增强/降噪（SpeechBrain）
-4. 情感识别（SpeechBrain）
-5. 语言识别（langid）
-6. VAD 语音活动检测（Silero）
-7. TTS 文字转语音
+3. 唤醒词检测
 """
 
 import torch
