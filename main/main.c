@@ -2,7 +2,7 @@
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
  * @LastEditors: xingnian j_xingnian@163.com
- * @LastEditTime: 2025-12-29 21:00:00
+ * @LastEditTime: 2025-12-29 20:38:47
  * @FilePath: \xn_voice_wake_up\main\main.c
  * @Description: esp32 语音唤醒组件 By.星年 - 云端唤醒词识别
  */
@@ -44,19 +44,15 @@ static void on_cloud_event(const cloud_audio_event_t *event, void *user_ctx)
         break;
     case CLOUD_AUDIO_EVENT_WAKE_DETECTED:
         ESP_LOGI(TAG, ">>> 检测到唤醒词: %s <<<", event->data.wake.text);
-        if (event->data.wake.speaker_verified) {
-            ESP_LOGI(TAG, "✅ 声纹验证通过 (%.2f)", event->data.wake.speaker_score);
-        }
         // TODO: 在这里添加唤醒后的处理逻辑
         break;
-    case CLOUD_AUDIO_EVENT_VOICE_VERIFIED:
-        ESP_LOGI(TAG, "✅ 声纹验证通过");
-        break;
-    case CLOUD_AUDIO_EVENT_VOICE_REJECTED:
-        ESP_LOGW(TAG, "❌ 声纹验证失败");
-        break;
+    // 声纹验证暂时屏蔽
+    // case CLOUD_AUDIO_EVENT_VOICE_VERIFIED:
+    // case CLOUD_AUDIO_EVENT_VOICE_REJECTED:
     case CLOUD_AUDIO_EVENT_ERROR:
         ESP_LOGE(TAG, "☁️ 云端错误: %d", event->data.error_code);
+        break;
+    default:
         break;
     }
 }
@@ -91,8 +87,17 @@ static void on_audio_event(const audio_mgr_event_t *event, void *user_ctx)
     case AUDIO_MGR_EVENT_VAD_END:
         ESP_LOGI(TAG, "🎤 检测到人声结束, 采样数: %d", s_audio_buffer_samples);
         // 发送音频到云端
-        if (s_audio_buffer_samples > 0 && cloud_audio_is_connected()) {
-            cloud_audio_send(s_audio_buffer, s_audio_buffer_samples);
+        if (s_audio_buffer_samples > 0) {
+            if (cloud_audio_is_connected()) {
+                esp_err_t ret = cloud_audio_send(s_audio_buffer, s_audio_buffer_samples);
+                if (ret == ESP_OK) {
+                    ESP_LOGI(TAG, "☁️ 音频已发送到云端");
+                } else {
+                    ESP_LOGW(TAG, "☁️ 音频发送失败: %s", esp_err_to_name(ret));
+                }
+            } else {
+                ESP_LOGW(TAG, "☁️ 云端未连接，跳过发送");
+            }
         }
         break;
         
@@ -186,6 +191,9 @@ static void ota_init_task(void *arg)
  */
 static void wifi_manage_event_cb(wifi_manage_state_t state)
 {
+    const char *state_names[] = {"IDLE", "CONNECTING", "CONNECTED", "DISCONNECTED", "AP_MODE"};
+    ESP_LOGI(TAG, "📶 WiFi 状态: %s", state_names[state]);
+    
     if (state != WIFI_MANAGE_STATE_CONNECTED) {
         return;
     }

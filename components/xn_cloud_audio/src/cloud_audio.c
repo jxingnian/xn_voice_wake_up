@@ -2,7 +2,7 @@
  * @Author: 星年 && jixingnian@gmail.com
  * @Date: 2025-12-29 20:30:00
  * @LastEditors: xingnian j_xingnian@163.com
- * @LastEditTime: 2025-12-29 20:31:04
+ * @LastEditTime: 2025-12-29 20:40:15
  * @FilePath: \xn_voice_wake_up\components\xn_cloud_audio\src\cloud_audio.c
  * @Description: 云端音频管理实现
  * 
@@ -52,6 +52,8 @@ static void cloud_audio_notify_event(cloud_audio_event_type_t type, const void *
 
 static void parse_ws_response(const char *data, int len)
 {
+    ESP_LOGI(TAG, "收到服务器响应: %.*s", len, data);
+    
     cJSON *json = cJSON_ParseWithLength(data, len);
     if (!json) {
         ESP_LOGW(TAG, "JSON 解析失败");
@@ -249,9 +251,17 @@ esp_err_t cloud_audio_set_wake_word(const char *wake_word)
     char url[256];
     snprintf(url, sizeof(url), "%s/set_wake_word", s_ctx.http_uri);
 
-    char post_data[256];
-    snprintf(post_data, sizeof(post_data), "user_id=%s&wake_word=%s", 
-             s_ctx.config.user_id, wake_word);
+    // 构建 JSON 请求体（避免 URL 编码问题）
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "user_id", s_ctx.config.user_id);
+    cJSON_AddStringToObject(json, "wake_word", wake_word);
+    char *post_data = cJSON_PrintUnformatted(json);
+    cJSON_Delete(json);
+
+    if (!post_data) {
+        ESP_LOGE(TAG, "JSON 创建失败");
+        return ESP_ERR_NO_MEM;
+    }
 
     esp_http_client_config_t http_cfg = {
         .url = url,
@@ -260,14 +270,18 @@ esp_err_t cloud_audio_set_wake_word(const char *wake_word)
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&http_cfg);
-    if (!client) return ESP_ERR_NO_MEM;
+    if (!client) {
+        free(post_data);
+        return ESP_ERR_NO_MEM;
+    }
 
-    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
+    esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
 
     esp_err_t ret = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
+    free(post_data);
 
     if (ret == ESP_OK && status == 200) {
         ESP_LOGI(TAG, "✅ 唤醒词设置成功");

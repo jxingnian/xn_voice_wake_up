@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import logging
 from typing import Optional, Dict, Any
-from fastapi import FastAPI, WebSocket, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -93,7 +93,19 @@ async def root():
     return {"status": "ok", "loaded_models": [k for k, v in models.items() if v]}
 
 @app.post("/set_wake_word")
-async def set_wake_word(user_id: str = Form(...), wake_word: str = Form(...)):
+async def set_wake_word(user_id: str = Form(None), wake_word: str = Form(None), request: Request = None):
+    # 支持 JSON 和 Form 两种格式
+    if user_id is None or wake_word is None:
+        try:
+            body = await request.json()
+            user_id = body.get("user_id")
+            wake_word = body.get("wake_word")
+        except:
+            raise HTTPException(status_code=400, detail="Missing user_id or wake_word")
+    
+    if not user_id or not wake_word:
+        raise HTTPException(status_code=400, detail="Missing user_id or wake_word")
+    
     config = get_user_config(user_id)
     config["wake_word"] = wake_word
     logger.info(f"用户 {user_id} 设置唤醒词: {wake_word}")
@@ -135,12 +147,18 @@ async def recognize(user_id: str = Form(...), audio: UploadFile = File(...)):
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await websocket.accept()
     config = get_user_config(user_id)
-    logger.info(f"用户 {user_id} 连接")
+    logger.info(f"用户 {user_id} 连接, 唤醒词: {config['wake_word']}")
     try:
         while True:
-            audio_np = audio_bytes_to_numpy(await websocket.receive_bytes())
-            text = transcribe_audio(audio_np)["text"]
-            wake_detected = config["wake_word"] in text
+            audio_bytes = await websocket.receive_bytes()
+            audio_np = audio_bytes_to_numpy(audio_bytes)
+            logger.info(f"Processing audio with duration {len(audio_np)/16000:05.3f}s")
+            
+            asr_result = transcribe_audio(audio_np)
+            text = asr_result.get("text", "")
+            logger.info(f"识别结果: '{text}'")
+            
+            wake_detected = config["wake_word"] in text if text else False
             
             result = {"text": text, "wake_detected": wake_detected, "speaker_verified": False, "speaker_score": 0.0}
             if wake_detected and config["voice_enabled"] and config["voice_embedding"] is not None:
