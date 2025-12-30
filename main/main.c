@@ -2,9 +2,9 @@
  * @Author: 星年 jixingnian@gmail.com
  * @Date: 2025-11-22 13:43:50
  * @LastEditors: xingnian j_xingnian@163.com
- * @LastEditTime: 2025-12-29 20:38:47
+ * @LastEditTime: 2025-12-30 09:00:57
  * @FilePath: \xn_voice_wake_up\main\main.c
- * @Description: esp32 语音唤醒组件 By.星年 - 云端唤醒词识别
+ * @Description: esp32 语音唤醒组件 By.星年 - FunASR 云端唤醒词识别
  */
 
 #include <stdio.h>
@@ -18,60 +18,10 @@
 #include "xn_wifi_manage.h"
 #include "http_ota_manager.h"
 #include "audio_manager.h"
-#include "cloud_audio.h"
 
 static const char *TAG = "app_main";
 
 static bool s_ota_inited = false;
-static bool s_cloud_inited = false;
-
-// 音频缓冲区 (用于收集 VAD 期间的音频)
-static int16_t *s_audio_buffer = NULL;
-static size_t s_audio_buffer_samples = 0;
-#define AUDIO_BUFFER_MAX_SAMPLES (16000 * 5)  // 最大 5 秒
-
-/*
- * @brief 云端音频事件回调
- */
-static void on_cloud_event(const cloud_audio_event_t *event, void *user_ctx)
-{
-    switch (event->type) {
-    case CLOUD_AUDIO_EVENT_CONNECTED:
-        ESP_LOGI(TAG, "☁️ 云端已连接");
-        break;
-    case CLOUD_AUDIO_EVENT_DISCONNECTED:
-        ESP_LOGW(TAG, "☁️ 云端断开连接");
-        break;
-    case CLOUD_AUDIO_EVENT_WAKE_DETECTED:
-        ESP_LOGI(TAG, ">>> 检测到唤醒词: %s <<<", event->data.wake.text);
-        // TODO: 在这里添加唤醒后的处理逻辑
-        break;
-    // 声纹验证暂时屏蔽
-    // case CLOUD_AUDIO_EVENT_VOICE_VERIFIED:
-    // case CLOUD_AUDIO_EVENT_VOICE_REJECTED:
-    case CLOUD_AUDIO_EVENT_ERROR:
-        ESP_LOGE(TAG, "☁️ 云端错误: %d", event->data.error_code);
-        break;
-    default:
-        break;
-    }
-}
-
-/*
- * @brief 录音数据回调 - 收集 VAD 期间的音频
- */
-static void on_record_data(const int16_t *pcm_data, size_t sample_count, void *user_ctx)
-{
-    if (!s_audio_buffer) return;
-    
-    size_t remaining = AUDIO_BUFFER_MAX_SAMPLES - s_audio_buffer_samples;
-    size_t to_copy = (sample_count < remaining) ? sample_count : remaining;
-    
-    if (to_copy > 0) {
-        memcpy(s_audio_buffer + s_audio_buffer_samples, pcm_data, to_copy * sizeof(int16_t));
-        s_audio_buffer_samples += to_copy;
-    }
-}
 
 /*
  * @brief 音频管理器事件回调
@@ -81,40 +31,14 @@ static void on_audio_event(const audio_mgr_event_t *event, void *user_ctx)
     switch (event->type) {
     case AUDIO_MGR_EVENT_VAD_START:
         ESP_LOGI(TAG, "🎤 检测到人声开始");
-        s_audio_buffer_samples = 0;  // 清空缓冲区
         break;
-        
     case AUDIO_MGR_EVENT_VAD_END:
-        ESP_LOGI(TAG, "🎤 检测到人声结束, 采样数: %d", s_audio_buffer_samples);
-        // 发送音频到云端
-        if (s_audio_buffer_samples > 0) {
-            if (cloud_audio_is_connected()) {
-                esp_err_t ret = cloud_audio_send(s_audio_buffer, s_audio_buffer_samples);
-                if (ret == ESP_OK) {
-                    ESP_LOGI(TAG, "☁️ 音频已发送到云端");
-                } else {
-                    ESP_LOGW(TAG, "☁️ 音频发送失败: %s", esp_err_to_name(ret));
-                }
-            } else {
-                ESP_LOGW(TAG, "☁️ 云端未连接，跳过发送");
-            }
-        }
+        ESP_LOGI(TAG, "🎤 检测到人声结束");
         break;
-        
     case AUDIO_MGR_EVENT_VAD_TIMEOUT:
         ESP_LOGW(TAG, "⏰ VAD 超时");
         break;
-        
-    case AUDIO_MGR_EVENT_BUTTON_TRIGGER:
-        ESP_LOGI(TAG, "🔘 按键触发");
-        s_audio_buffer_samples = 0;
-        break;
-        
-    case AUDIO_MGR_EVENT_BUTTON_RELEASE:
-        ESP_LOGI(TAG, "🔘 按键松开");
-        if (s_audio_buffer_samples > 0 && cloud_audio_is_connected()) {
-            cloud_audio_send(s_audio_buffer, s_audio_buffer_samples);
-        }
+    default:
         break;
     }
 }
@@ -126,40 +50,6 @@ static void on_audio_state(audio_mgr_state_t state, void *user_ctx)
 {
     const char *state_str[] = {"DISABLED", "IDLE", "LISTENING", "RECORDING", "PLAYBACK"};
     ESP_LOGI(TAG, "音频状态: %s", state_str[state]);
-}
-
-/*
- * @brief 云端初始化任务
- */
-static void cloud_init_task(void *arg)
-{
-    // 初始化云端音频
-    cloud_audio_config_t cloud_cfg = CLOUD_AUDIO_DEFAULT_CONFIG();
-    cloud_cfg.server_host = "117.50.176.26";
-    cloud_cfg.server_port = 8000;
-    cloud_cfg.user_id = "esp32_device";
-    cloud_cfg.event_cb = on_cloud_event;
-
-    esp_err_t ret = cloud_audio_init(&cloud_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "cloud_audio_init failed: %s", esp_err_to_name(ret));
-        vTaskDelete(NULL);
-        return;
-    }
-
-    // 设置唤醒词
-    ret = cloud_audio_set_wake_word("你好星年");
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "设置唤醒词失败");
-    }
-
-    // 连接 WebSocket
-    ret = cloud_audio_connect();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "cloud_audio_connect failed: %s", esp_err_to_name(ret));
-    }
-
-    vTaskDelete(NULL);
 }
 
 /*
@@ -204,11 +94,7 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
         s_ota_inited = true;
     }
 
-    // 初始化云端音频
-    if (!s_cloud_inited) {
-        xTaskCreate(cloud_init_task, "cloud_init", 1024*6, NULL, tskIDLE_PRIORITY + 3, NULL);
-        s_cloud_inited = true;
-    }
+    // TODO: WiFi 连接后初始化云端唤醒词服务
 }
 
 /*
@@ -216,17 +102,7 @@ static void wifi_manage_event_cb(wifi_manage_state_t state)
  */
 void app_main(void)
 {
-    printf("esp32 语音唤醒组件 By.星年 - 云端唤醒词识别\n");
-
-    // 分配音频缓冲区
-    s_audio_buffer = heap_caps_malloc(AUDIO_BUFFER_MAX_SAMPLES * sizeof(int16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_audio_buffer) {
-        s_audio_buffer = malloc(AUDIO_BUFFER_MAX_SAMPLES * sizeof(int16_t));
-    }
-    if (!s_audio_buffer) {
-        ESP_LOGE(TAG, "音频缓冲区分配失败");
-        return;
-    }
+    printf("esp32 语音唤醒组件 By.星年 - FunASR 云端唤醒词识别\n");
 
     // 初始化音频管理器
     audio_mgr_config_t audio_cfg = AUDIO_MANAGER_DEFAULT_CONFIG();
@@ -257,10 +133,6 @@ void app_main(void)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "audio_manager_init failed: %s", esp_err_to_name(ret));
     } else {
-        // 注册录音数据回调
-        audio_manager_set_record_callback(on_record_data, NULL);
-        
-        // 开始监听
         ret = audio_manager_start();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "audio_manager_start failed: %s", esp_err_to_name(ret));
