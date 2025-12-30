@@ -1,6 +1,16 @@
+<!--
+ * @Author: 星年 && j_xingnian@163.com
+ * @Date: 2025-12-30 09:03:14
+ * @LastEditors: xingnian j_xingnian@163.com
+ * @LastEditTime: 2025-12-30 09:37:18
+ * @FilePath: \xn_voice_wake_up\doc\funasr-kws-deploy.md
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+-->
 # FunASR 语音唤醒服务部署文档
 
-## 一、服务器要求
+## 一、服务器fu
 
 - Ubuntu 20.04+
 - Python 3.8+
@@ -10,23 +20,20 @@
 ## 二、安装依赖
 
 ```bash
-# 创建虚拟环境
-python3 -m venv venv
+# 进入项目目录
+cd /root/voice-wake-server
 source venv/bin/activate
 
-# 安装依赖
-pip install funasr torch torchaudio fastapi uvicorn websockets
-
-# GPU 版本（可选）
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+# 安装 FunASR 和依赖
+pip install funasr
 ```
 
 ## 三、上传服务端代码
 
-将 `funasr_kws_server.py` 上传到服务器：
+将 `funasr_kws_server.py` 上传到服务器（注意端口是 23）：
 
 ```bash
-scp doc/funasr_kws_server.py root@117.50.176.26:/root/voice-wake-server/
+pscp -P 23 -pw Wsq7Se4vLmi96HT doc/funasr_kws_server.py root@117.50.176.26:/root/voice-wake-server/
 ```
 
 ## 四、启动服务
